@@ -2,9 +2,9 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
-    <loc>http://ggbala.github.io/2024/09/26/Feelings-1-4-of-Magic-Tree-House/</loc>
+    <loc>http://ggbala.github.io/2024/10/09/The-first-time-worked-out-my-legs-at-the-fitness-studio-I-felt-kind-of-challenging/</loc>
     
-    <lastmod>2024-09-25</lastmod>
+    <lastmod>2024-10-08</lastmod>
     
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -12,6 +12,15 @@
   
   <url>
     <loc>http://ggbala.github.io/2024/09/23/Start-to-work-out/</loc>
+    
+    <lastmod>2024-10-08</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>http://ggbala.github.io/2024/09/26/Feelings-1-4-of-Magic-Tree-House/</loc>
     
     <lastmod>2024-09-25</lastmod>
     
@@ -31,7 +40,7 @@
 
   <url>
     <loc>http://ggbala.github.io/</loc>
-    <lastmod>2024-09-25</lastmod>
+    <lastmod>2024-10-08</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
@@ -39,14 +48,14 @@
   
   <url>
     <loc>http://ggbala.github.io/tags/English-Learning/</loc>
-    <lastmod>2024-09-25</lastmod>
+    <lastmod>2024-10-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
-    <loc>http://ggbala.github.io/tags/Work-Out/</loc>
-    <lastmod>2024-09-25</lastmod>
+    <loc>http://ggbala.github.io/tags/Life/</loc>
+    <lastmod>2024-10-08</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
