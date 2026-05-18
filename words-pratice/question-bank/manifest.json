@@ -11,6 +11,12 @@
     { "name": "Wealth Inequality", "file": "Wealth-Inequality.txt" },
     { "name": "Generative AI", "file": "Generative-AI.txt" },
     { "name": "Artificial Intelligence", "file": "Artificial-Intelligence.txt" },
-    { "name": "Energy", "file": "Energy.txt" }
+    { "name": "Energy", "file": "Energy.txt" },
+    { "name": "Social Welfare", "file": "Social-Welfare.txt" },
+    { "name": "Public Benefit Corporations", "file": "Public-Benefit-Corporations.txt" },
+    { "name": "Values", "file": "Values.txt" },
+    { "name": "Hustle Culture", "file": "Hustle-Culture.txt" },
+    { "name": "US Political System", "file": "US-Political-System.txt" },
+    { "name": "Coffee Knowledge", "file": "Coffee-Knowledge.txt" }
   ]
 }
