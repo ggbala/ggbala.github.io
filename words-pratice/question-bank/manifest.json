@@ -8,6 +8,9 @@
     { "name": "Metabolic Health", "file": "Metabolic-Health.txt" },
     { "name": "Healthy Living", "file": "Healthy-Living.txt" },
     { "name": "Muscle Building", "file": "Muscle-Building.txt" },
-    { "name": "Wealth Inequality", "file": "Wealth-Inequality.txt" }
+    { "name": "Wealth Inequality", "file": "Wealth-Inequality.txt" },
+    { "name": "Generative AI", "file": "Generative-AI.txt" },
+    { "name": "Artificial Intelligence", "file": "Artificial-Intelligence.txt" },
+    { "name": "Energy", "file": "Energy.txt" }
   ]
 }

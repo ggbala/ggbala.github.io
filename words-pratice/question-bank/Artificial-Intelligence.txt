@@ -1,0 +1,26 @@
+# 中文意思	英文完整句子	填空词，最多3个
+机器学习是人工智能的一个子领域，使系统能够从数据中学习并改进，而无需显式编程。	Machine learning is a subset of artificial intelligence that enables systems to learn from data and improve without explicit programming.	subset, enables, explicit
+深度学习利用多层神经网络从大量非结构化数据中提取复杂的高层次特征。	Deep learning utilises multiple layers of neural networks to extract complex high-level features from vast amounts of unstructured data.	utilises, extract, vast
+自然语言处理使计算机能够以前所未有的流畅度理解、解释和生成人类语言。	Natural language processing empowers computers to understand, interpret, and generate human language with unprecedented fluency.	empowers, interpret, unprecedented
+强化学习通过奖励智能体在环境中的期望行为来训练其进行最优决策。	Reinforcement learning trains agents to make optimal decisions by rewarding desirable behaviour within an environment.	Reinforcement, optimal, rewarding
+计算机视觉系统可以以与人类相当或超越人类的精度识别物体、面孔和场景。	Computer vision systems can identify objects, faces, and scenes with accuracy comparable to or surpassing that of humans.	identify, comparable, surpassing
+神经网络中的反向传播算法通过计算损失函数相对于权重的梯度来进行参数更新。	The backpropagation algorithm in neural networks updates parameters by computing the gradient of the loss function with respect to weights.	backpropagation, gradient, parameters
+过拟合是机器学习中一个常见挑战，其表现是模型在训练数据上表现优异但在新数据上表现不佳。	Overfitting is a common challenge in machine learning where a model performs excellently on training data but poorly on new data.	Overfitting, excellently, poorly
+卷积神经网络因其能够有效捕获层次化的空间特征而彻底改变了图像识别。	Convolutional neural networks have revolutionised image recognition by effectively capturing hierarchical spatial features.	Convolutional, hierarchical, spatial
+迁移学习通过将在大型数据集上预训练的模型适配到较小领域中的特定任务来加速开发过程。	Transfer learning accelerates development by adapting models pre-trained on large datasets to specific tasks in smaller domains.	accelerates, adapting, domains
+注意力机制使模型能够在生成每个输出元素时动态地关注输入中最相关的部分。	Attention mechanisms allow models to dynamically focus on the most relevant parts of the input when producing each output element.	dynamically, relevant, output
+AI 模型中的偏见和公平性已成为社会技术研究的前沿，因为算法决策日益影响人们的生活。	Bias and fairness in AI models have become forefront issues in socio-technical research, as algorithmic decisions increasingly affect people's lives.	fairness, forefront, affect
+机器人流程自动化使企业能够将重复性的桌面任务交给软件机器人处理，从而提高运营效率。	Robotic process automation enables businesses to delegate repetitive desktop tasks to software bots, thereby increasing operational efficiency.	delegate, repetitive, thereby
+transformer 架构通过完全依赖注意力机制而无需循环或卷积结构，彻底改变了自然语言处理领域。	The transformer architecture transformed the NLP landscape by relying entirely on attention mechanisms without recurrent or convolutional structures.	transformed, entirely, recurrent
+大规模语言模型中出现的涌现能力表明，仅通过扩大模型规模就可以产生复杂的高级推理。	Emergent abilities in large-scale language models suggest that complex high-level reasoning can arise simply from scaling up model size.	Emergent, reasoning, arise
+联邦学习允许多方在不共享原始数据的情况下协作训练模型，从而增强隐私保护。	Federated learning allows multiple parties to collaboratively train models without sharing raw data, thereby enhancing privacy protection.	collaboratively, raw, enhancing
+可解释 AI 旨在使复杂模型的决策过程对人类透明且可理解，以建立信任并确保问责。	Explainable AI aims to make the decision-making processes of complex models transparent and comprehensible to humans, fostering trust and ensuring accountability.	transparent, comprehensible, accountability
+AI 与教育的融合能够实现自适应评估，根据学生的个人水平量身定制学习内容和节奏。	The integration of AI into education enables adaptive assessments that tailor learning content and pacing to individual student levels.	integration, assessments, pacing
+对抗性攻击通过对输入进行精心设计的人类难以察觉的干扰来欺骗机器学习模型做出错误预测。	Adversarial attacks deceive machine learning models into making incorrect predictions by introducing carefully crafted, imperceptible perturbations to inputs.	deceive, imperceptible, perturbations
+负责任的 AI 治理框架强调透明度、公平性、稳健性和隐私保护等核心原则。	Responsible AI governance frameworks emphasise core principles such as transparency, fairness, robustness, and privacy protection.	governance, robustness, principles
+自动驾驶在实现广泛部署之前，必须解决伦理决策、安全认证和公众信任等重大障碍。	Autonomous driving must overcome significant hurdles including ethical decision-making, safety certification, and public trust before widespread deployment.	hurdles, certification, widespread
+AI 驱动的药物发现通过预测分子相互作用来加速先导化合物的识别，从而大幅缩短研发周期。	AI-powered drug discovery accelerates the identification of lead compounds by predicting molecular interactions, substantially shortening development timelines.	identification, compounds, substantially
+人类反馈强化学习通过对齐模型输出与人类偏好来改进生成结果的帮助性和安全性。	Reinforcement learning from human feedback improves the helpfulness and safety of generated outputs by aligning model responses with human preferences.	helpfulness, aligning, preferences
+用于训练大型 AI 模型的数据集通常反映并放大了社会中现有的偏见和结构性的不平等。	Datasets used to train large AI models often reflect and amplify existing prejudices and structural inequalities in society.	amplify, prejudices, inequalities
+持续学习系统旨在随着时间的推移不断获取新知识和技能，同时避免灾难性遗忘。	Continual learning systems aim to acquire new knowledge and skills over time while avoiding catastrophic forgetting.	Continual, acquire, catastrophic
+多智能体系统研究多个自主 AI 实体如何在同一环境中进行交互、协调和竞争。	Multi-agent systems study how multiple autonomous AI entities interact, coordinate, and compete within a shared environment.	autonomous, coordinate, entities
