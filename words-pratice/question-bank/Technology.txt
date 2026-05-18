@@ -1,0 +1,26 @@
+# 中文意思	英文完整句子	填空词，最多3个
+人工智能正在通过自动化日常任务和提供数据驱动的洞察来彻底改变各行各业。	Artificial intelligence is revolutionising various industries by automating routine tasks and providing data-driven insights.	revolutionising, automating, insights
+智能手机的广泛使用从根本上改变了人们的沟通、工作和社交方式。	The widespread use of smartphones has fundamentally altered the way people communicate, work, and socialise.	widespread, fundamentally, socialise
+随着网络攻击变得越来越复杂，网络安全已成为政府和企业的首要任务。	Cybersecurity has become a top priority for governments and corporations as cyber attacks become increasingly sophisticated.	Cybersecurity, priority, sophisticated
+社交媒体平台既促进了全球互联，也引发了人们对隐私和心理健康的担忧。	Social media platforms have facilitated global connectivity while also raising concerns about privacy and mental health.	facilitated, connectivity, concerns
+自动化有望提高效率，但也可能取代某些行业的工人。	Automation promises to increase efficiency but may also displace workers in certain industries.	Automation, efficiency, displace
+远程工作技术使得数百万人在疫情期间能够在家工作，这一趋势此后持续存在。	Remote working technology enabled millions of people to work from home during the pandemic, a trend that has persisted ever since.	Remote, trend, persisted
+大数据分析使公司能够更好地理解消费者行为并优化其运营。	Big data analytics allows companies to better understand consumer behaviour and optimise their operations.	analytics, optimise, operations
+面部识别技术的使用引发了关于大规模监控和公民自由的伦理争议。	The use of facial recognition technology has sparked ethical debates about mass surveillance and civil liberties.	recognition, sparked, surveillance
+电子商务改变了零售业格局，许多实体店难以与在线平台竞争。	E-commerce has transformed the retail landscape, with many brick-and-mortar stores struggling to compete with online platforms.	transformed, landscape, compete
+电动汽车和自动驾驶技术有望大幅减少交通事故和碳排放。	Electric vehicles and self-driving technology promise to dramatically reduce traffic accidents and carbon emissions.	self-driving, dramatically, emissions
+基因编辑技术如CRISPR在治疗遗传疾病方面具有巨大潜力，但也引发伦理关切。	Gene-editing technologies such as CRISPR hold enormous potential for treating genetic diseases but raise ethical concerns.	enormous, potential, ethical
+5G网络的推出将实现更快的连接，并支持物联网设备的大规模增长。	The rollout of 5G networks will enable faster connectivity and support the massive growth of Internet of Things devices.	rollout, enable, massive
+区块链技术有潜力通过提供去中心化和透明的系统来革新金融和供应链管理。	Blockchain technology has the potential to revolutionise finance and supply chain management by providing decentralised and transparent systems.	revolutionise, decentralised, transparent
+过多的屏幕时间与一系列健康问题有关，包括眼睛疲劳、睡眠紊乱和身体活动减少。	Excessive screen time has been linked to a range of health issues, including eye strain, disrupted sleep, and reduced physical activity.	Excessive, disrupted, reduced
+数字鸿沟仍然是一个紧迫的问题，因为数百万人在获取可靠的互联网连接和数字设备方面仍然不足。	The digital divide remains a pressing issue, as millions of people still lack adequate access to reliable internet connectivity and digital devices.	divide, adequate, devices
+可穿戴技术如智能手表使个人能够实时监测自己的健康和健身指标。	Wearable technology such as smartwatches empowers individuals to monitor their health and fitness metrics in real time.	empowers, monitor, metrics
+科技巨头因其市场主导地位和数据隐私做法而在全球范围内面临越来越多的监管审查。	Tech giants are facing growing regulatory scrutiny worldwide over their market dominance and data privacy practices.	giants, scrutiny, dominance
+云计算使企业无需大量前期硬件投资即可按需扩展其IT资源。	Cloud computing enables businesses to scale their IT resources on demand without requiring substantial upfront hardware investment.	scale, substantial, upfront
+算法偏见可能导致在招聘、贷款审批和刑事司法方面产生歧视性结果。	Algorithmic bias can lead to discriminatory outcomes in hiring, loan approval, and criminal justice.	Algorithmic, discriminatory, justice
+量子计算有望通过以指数级速度解决复杂问题来突破现有技术的限制。	Quantum computing promises to push beyond the limitations of current technology by solving complex problems at exponentially faster speeds.	Quantum, limitations, exponentially
+虚拟现实和增强现实正在创造教育、培训和娱乐领域的新可能性。	Virtual reality and augmented reality are creating new possibilities in education, training, and entertainment.	augmented, possibilities, entertainment
+3D打印技术正被用于制造从医疗植入物到建筑组件的各种产品，从而减少了浪费。	3D printing technology is being used to manufacture everything from medical implants to construction components, thereby reducing waste.	manufacture, components, thereby
+技术进步正在以惊人的速度发生，使社会难以跟上相关的伦理和监管框架。	Technological advancements are occurring at a staggering pace, making it difficult for societies to keep up with relevant ethical and regulatory frameworks.	staggering, pace, frameworks
+政府必须投资数字化基础设施，以在全球数字经济中保持竞争力。	Governments must invest in digital infrastructure to remain competitive in the global digital economy.	infrastructure, competitive, global
+对技术创新的持续追求既带来前所未有的机遇，也带来了需要谨慎管理的重大风险。	The relentless pursuit of technological innovation brings both unprecedented opportunities and significant risks that need to be carefully managed.	relentless, unprecedented, managed

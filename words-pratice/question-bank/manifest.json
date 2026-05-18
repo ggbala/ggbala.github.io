@@ -1,5 +1,9 @@
 {
   "files": [
-    { "name": "Environment", "file": "Environment.txt" }
+    { "name": "Education", "file": "Education.txt" },
+    { "name": "Technology", "file": "Technology.txt" },
+    { "name": "Environment", "file": "Environment.txt" },
+    { "name": "Health", "file": "Health.txt" },
+    { "name": "Strength Training", "file": "Strength-Training.txt" }
   ]
 }
