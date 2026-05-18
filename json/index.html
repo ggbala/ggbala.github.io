@@ -1,0 +1,930 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JSON 格式化工具</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7fb;
+      --panel: #ffffff;
+      --panel-strong: #f9fafc;
+      --text: #1f2937;
+      --muted: #667085;
+      --line: #d9dee8;
+      --line-strong: #c9d1df;
+      --accent: #126b5b;
+      --accent-strong: #0f5b4e;
+      --danger: #c03535;
+      --danger-bg: #fff1f1;
+      --key: #8d3f9c;
+      --string: #0a6d3c;
+      --number: #175cd3;
+      --literal: #a15c00;
+      --shadow: 0 18px 45px rgba(31, 41, 55, 0.10);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    button,
+    textarea {
+      font: inherit;
+    }
+
+    .app {
+      min-height: 100%;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(14px);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+
+    .brand {
+      min-width: 0;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .button {
+      border: 1px solid var(--line-strong);
+      background: var(--panel);
+      color: var(--text);
+      border-radius: 8px;
+      height: 36px;
+      padding: 0 13px;
+      cursor: pointer;
+      transition: background .15s ease, border-color .15s ease, color .15s ease, transform .15s ease;
+      white-space: nowrap;
+    }
+
+    .button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .button.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #ffffff;
+    }
+
+    .button.primary:hover {
+      background: var(--accent-strong);
+      color: #ffffff;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 16px;
+      padding: 16px;
+      min-height: 0;
+    }
+
+    .pane {
+      min-width: 0;
+      min-height: calc(100vh - 102px);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      overflow: hidden;
+    }
+
+    .pane-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel-strong);
+    }
+
+    .pane-title {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      border-radius: 999px;
+      padding: 3px 9px;
+      background: #ecfdf3;
+      color: #087443;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .status.bad {
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+
+    .meta {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 9px 16px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+      background: #ffffff;
+    }
+
+    .editor-wrap,
+    .output-wrap {
+      min-height: 0;
+      position: relative;
+    }
+
+    textarea {
+      width: 100%;
+      height: 100%;
+      min-height: 520px;
+      resize: none;
+      border: 0;
+      outline: 0;
+      padding: 18px;
+      color: var(--text);
+      background: #ffffff;
+      font: 14px/1.65 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      tab-size: 2;
+    }
+
+    textarea::placeholder {
+      color: #98a2b3;
+    }
+
+    pre {
+      margin: 0;
+      height: 100%;
+      min-height: 520px;
+      overflow: auto;
+      padding: 18px;
+      background: #fbfcfe;
+      font: 14px/1.65 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      tab-size: 2;
+    }
+
+    code {
+      white-space: pre;
+    }
+
+    .empty,
+    .error {
+      white-space: normal;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.6;
+      max-width: 720px;
+    }
+
+    .empty {
+      color: var(--muted);
+    }
+
+    .error {
+      color: var(--danger);
+      background: var(--danger-bg);
+      border: 1px solid #ffd0d0;
+      border-radius: 8px;
+      padding: 14px;
+    }
+
+    .error strong {
+      display: block;
+      color: #9f2a2a;
+      margin-bottom: 6px;
+    }
+
+    .snippet {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 6px;
+      background: #ffffff;
+      border: 1px solid #ffd0d0;
+      color: #6b1d1d;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    .token-key {
+      color: var(--key);
+      font-weight: 700;
+    }
+
+    .token-string {
+      color: var(--string);
+    }
+
+    .token-number {
+      color: var(--number);
+    }
+
+    .token-literal {
+      color: var(--literal);
+      font-weight: 700;
+    }
+
+    .token-punc {
+      color: #344054;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%) translateY(20px);
+      opacity: 0;
+      pointer-events: none;
+      background: #1f2937;
+      color: #ffffff;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      box-shadow: 0 12px 34px rgba(31, 41, 55, .24);
+      transition: opacity .18s ease, transform .18s ease;
+      z-index: 20;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    @media (max-width: 900px) {
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .actions {
+        justify-content: flex-start;
+      }
+
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .pane {
+        min-height: 520px;
+      }
+
+      textarea,
+      pre {
+        min-height: 410px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .topbar,
+      .workspace {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      .button {
+        flex: 1 1 auto;
+      }
+
+      .pane-head,
+      .meta {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      textarea,
+      pre {
+        padding: 12px;
+        font-size: 13px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <h1>JSON 格式化工具</h1>
+        <p class="subtitle">左侧输入，右侧实时渲染；大整数按文本保留，不经过 Number 转换。</p>
+      </div>
+      <div class="actions" aria-label="工具操作">
+        <button class="button" id="sampleBtn" type="button">示例</button>
+        <button class="button" id="clearBtn" type="button">清空</button>
+        <button class="button primary" id="copyBtn" type="button">复制结果</button>
+      </div>
+    </header>
+
+    <section class="workspace">
+      <article class="pane">
+        <div class="pane-head">
+          <h2 class="pane-title">输入</h2>
+          <span class="status" id="inputStatus">等待输入</span>
+        </div>
+        <div class="meta">
+          <span id="charCount">0 字符</span>
+          <span id="lineCount">1 行</span>
+        </div>
+        <div class="editor-wrap">
+          <textarea id="jsonInput" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder='粘贴 JSON，例如：{"id":9223372036854775807,"name":"Alice"}'></textarea>
+        </div>
+      </article>
+
+      <article class="pane">
+        <div class="pane-head">
+          <h2 class="pane-title">渲染</h2>
+          <span class="status" id="renderStatus">待解析</span>
+        </div>
+        <div class="meta">
+          <span id="typeInfo">类型：-</span>
+          <span id="sizeInfo">节点：-</span>
+        </div>
+        <div class="output-wrap">
+          <pre id="jsonOutput"><code class="empty">在左侧输入合法 JSON 后，这里会显示格式化结果。</code></pre>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var input = document.getElementById("jsonInput");
+      var output = document.getElementById("jsonOutput");
+      var inputStatus = document.getElementById("inputStatus");
+      var renderStatus = document.getElementById("renderStatus");
+      var charCount = document.getElementById("charCount");
+      var lineCount = document.getElementById("lineCount");
+      var typeInfo = document.getElementById("typeInfo");
+      var sizeInfo = document.getElementById("sizeInfo");
+      var copyBtn = document.getElementById("copyBtn");
+      var clearBtn = document.getElementById("clearBtn");
+      var sampleBtn = document.getElementById("sampleBtn");
+      var toast = document.getElementById("toast");
+      var latestFormatted = "";
+      var toastTimer = null;
+
+      function JsonParseError(message, index, source) {
+        this.name = "JsonParseError";
+        this.message = message;
+        this.index = Math.max(0, index || 0);
+        this.source = source || "";
+      }
+
+      JsonParseError.prototype = Object.create(Error.prototype);
+      JsonParseError.prototype.constructor = JsonParseError;
+
+      function Parser(text) {
+        this.text = text;
+        this.index = 0;
+        this.length = text.length;
+      }
+
+      Parser.prototype.error = function (message) {
+        throw new JsonParseError(message, this.index, this.text);
+      };
+
+      Parser.prototype.peek = function () {
+        return this.text.charAt(this.index);
+      };
+
+      Parser.prototype.next = function () {
+        return this.text.charAt(this.index++);
+      };
+
+      Parser.prototype.skipWhitespace = function () {
+        while (this.index < this.length) {
+          var ch = this.peek();
+          if (ch === " " || ch === "\n" || ch === "\r" || ch === "\t") {
+            this.index += 1;
+          } else {
+            break;
+          }
+        }
+      };
+
+      Parser.prototype.parse = function () {
+        this.skipWhitespace();
+        if (this.index >= this.length) {
+          this.error("内容为空，请输入 JSON。");
+        }
+        var value = this.parseValue();
+        this.skipWhitespace();
+        if (this.index < this.length) {
+          this.error("JSON 根值结束后还有多余内容。");
+        }
+        return value;
+      };
+
+      Parser.prototype.parseValue = function () {
+        this.skipWhitespace();
+        var ch = this.peek();
+        if (ch === "{") return this.parseObject();
+        if (ch === "[") return this.parseArray();
+        if (ch === "\"") return this.parseStringNode();
+        if (ch === "-" || isDigit(ch)) return this.parseNumberNode();
+        if (this.text.slice(this.index, this.index + 4) === "true") {
+          this.index += 4;
+          return { type: "literal", raw: "true", value: true };
+        }
+        if (this.text.slice(this.index, this.index + 5) === "false") {
+          this.index += 5;
+          return { type: "literal", raw: "false", value: false };
+        }
+        if (this.text.slice(this.index, this.index + 4) === "null") {
+          this.index += 4;
+          return { type: "literal", raw: "null", value: null };
+        }
+        this.error("这里应该是对象、数组、字符串、数字、true、false 或 null。");
+      };
+
+      Parser.prototype.parseObject = function () {
+        var entries = [];
+        this.next();
+        this.skipWhitespace();
+        if (this.peek() === "}") {
+          this.next();
+          return { type: "object", entries: entries };
+        }
+        while (this.index < this.length) {
+          this.skipWhitespace();
+          if (this.peek() !== "\"") {
+            this.error("对象的键必须是双引号包裹的字符串。");
+          }
+          var key = this.parseStringNode();
+          this.skipWhitespace();
+          if (this.peek() !== ":") {
+            this.error("对象键后面缺少冒号。");
+          }
+          this.next();
+          var value = this.parseValue();
+          entries.push({ key: key, value: value });
+          this.skipWhitespace();
+          var ch = this.peek();
+          if (ch === "}") {
+            this.next();
+            return { type: "object", entries: entries };
+          }
+          if (ch !== ",") {
+            this.error("对象成员之间需要逗号，或使用右花括号结束对象。");
+          }
+          this.next();
+          this.skipWhitespace();
+          if (this.peek() === "}") {
+            this.error("对象末尾不能有多余逗号。");
+          }
+        }
+        this.error("对象没有正确结束，缺少右花括号。");
+      };
+
+      Parser.prototype.parseArray = function () {
+        var items = [];
+        this.next();
+        this.skipWhitespace();
+        if (this.peek() === "]") {
+          this.next();
+          return { type: "array", items: items };
+        }
+        while (this.index < this.length) {
+          items.push(this.parseValue());
+          this.skipWhitespace();
+          var ch = this.peek();
+          if (ch === "]") {
+            this.next();
+            return { type: "array", items: items };
+          }
+          if (ch !== ",") {
+            this.error("数组元素之间需要逗号，或使用右方括号结束数组。");
+          }
+          this.next();
+          this.skipWhitespace();
+          if (this.peek() === "]") {
+            this.error("数组末尾不能有多余逗号。");
+          }
+        }
+        this.error("数组没有正确结束，缺少右方括号。");
+      };
+
+      Parser.prototype.parseStringNode = function () {
+        var start = this.index;
+        var value = "";
+        this.next();
+        while (this.index < this.length) {
+          var ch = this.next();
+          if (ch === "\"") {
+            return { type: "string", raw: this.text.slice(start, this.index), value: value };
+          }
+          if (ch === "\\") {
+            if (this.index >= this.length) {
+              this.error("字符串转义字符不完整。");
+            }
+            var escaped = this.next();
+            if (escaped === "\"" || escaped === "\\" || escaped === "/") {
+              value += escaped;
+            } else if (escaped === "b") {
+              value += "\b";
+            } else if (escaped === "f") {
+              value += "\f";
+            } else if (escaped === "n") {
+              value += "\n";
+            } else if (escaped === "r") {
+              value += "\r";
+            } else if (escaped === "t") {
+              value += "\t";
+            } else if (escaped === "u") {
+              var hex = this.text.slice(this.index, this.index + 4);
+              if (!/^[0-9a-fA-F]{4}$/.test(hex)) {
+                this.error("Unicode 转义必须是 \\u 后跟 4 位十六进制字符。");
+              }
+              value += String.fromCharCode(parseInt(hex, 16));
+              this.index += 4;
+            } else {
+              this.error("字符串包含非法转义字符 \\" + escaped + "。");
+            }
+          } else {
+            if (ch < " ") {
+              this.error("字符串中不能直接包含控制字符。");
+            }
+            value += ch;
+          }
+        }
+        this.error("字符串没有正确结束，缺少双引号。");
+      };
+
+      Parser.prototype.parseNumberNode = function () {
+        var start = this.index;
+        if (this.peek() === "-") {
+          this.next();
+        }
+        if (this.peek() === "0") {
+          this.next();
+          if (isDigit(this.peek())) {
+            this.error("数字不能包含前导零。");
+          }
+        } else if (isDigitOneToNine(this.peek())) {
+          while (isDigit(this.peek())) {
+            this.next();
+          }
+        } else {
+          this.error("负号后面必须跟数字。");
+        }
+        if (this.peek() === ".") {
+          this.next();
+          if (!isDigit(this.peek())) {
+            this.error("小数点后面必须至少有一位数字。");
+          }
+          while (isDigit(this.peek())) {
+            this.next();
+          }
+        }
+        var ch = this.peek();
+        if (ch === "e" || ch === "E") {
+          this.next();
+          ch = this.peek();
+          if (ch === "+" || ch === "-") {
+            this.next();
+          }
+          if (!isDigit(this.peek())) {
+            this.error("指数部分必须包含数字。");
+          }
+          while (isDigit(this.peek())) {
+            this.next();
+          }
+        }
+        return { type: "number", raw: this.text.slice(start, this.index) };
+      };
+
+      function isDigit(ch) {
+        return ch >= "0" && ch <= "9";
+      }
+
+      function isDigitOneToNine(ch) {
+        return ch >= "1" && ch <= "9";
+      }
+
+      function parseJsonLossless(text) {
+        return new Parser(text).parse();
+      }
+
+      function formatNode(node, level) {
+        if (node.type === "object") return formatObject(node, level);
+        if (node.type === "array") return formatArray(node, level);
+        if (node.type === "string") return escapeJsonString(node.value);
+        if (node.type === "number") return node.raw;
+        return node.raw;
+      }
+
+      function formatObject(node, level) {
+        if (node.entries.length === 0) return "{}";
+        var pad = indent(level);
+        var childPad = indent(level + 1);
+        var lines = ["{"];
+        node.entries.forEach(function (entry, index) {
+          var comma = index === node.entries.length - 1 ? "" : ",";
+          lines.push(childPad + escapeJsonString(entry.key.value) + ": " + formatNode(entry.value, level + 1) + comma);
+        });
+        lines.push(pad + "}");
+        return lines.join("\n");
+      }
+
+      function formatArray(node, level) {
+        if (node.items.length === 0) return "[]";
+        var pad = indent(level);
+        var childPad = indent(level + 1);
+        var lines = ["["];
+        node.items.forEach(function (item, index) {
+          var comma = index === node.items.length - 1 ? "" : ",";
+          lines.push(childPad + formatNode(item, level + 1) + comma);
+        });
+        lines.push(pad + "]");
+        return lines.join("\n");
+      }
+
+      function indent(level) {
+        return new Array(level + 1).join("  ");
+      }
+
+      function escapeJsonString(value) {
+        return "\"" + value.replace(/[\\"\u0000-\u001f]/g, function (ch) {
+          if (ch === "\\") return "\\\\";
+          if (ch === "\"") return "\\\"";
+          if (ch === "\b") return "\\b";
+          if (ch === "\f") return "\\f";
+          if (ch === "\n") return "\\n";
+          if (ch === "\r") return "\\r";
+          if (ch === "\t") return "\\t";
+          var hex = ch.charCodeAt(0).toString(16);
+          return "\\u" + "0000".slice(hex.length) + hex;
+        }) + "\"";
+      }
+
+      function highlight(text) {
+        var parser = new Parser(text);
+        var html = "";
+        while (parser.index < parser.length) {
+          var ch = parser.peek();
+          if (ch === "\"") {
+            var start = parser.index;
+            var stringNode = parser.parseStringNode();
+            var end = parser.index;
+            var after = parser.index;
+            while (after < parser.length && isWhitespace(text.charAt(after))) {
+              after += 1;
+            }
+            var className = text.charAt(after) === ":" ? "token-key" : "token-string";
+            html += '<span class="' + className + '">' + escapeHtml(text.slice(start, end)) + "</span>";
+          } else if (ch === "-" || isDigit(ch)) {
+            var numberStart = parser.index;
+            parser.parseNumberNode();
+            html += '<span class="token-number">' + escapeHtml(text.slice(numberStart, parser.index)) + "</span>";
+          } else if (text.slice(parser.index, parser.index + 4) === "true") {
+            html += '<span class="token-literal">true</span>';
+            parser.index += 4;
+          } else if (text.slice(parser.index, parser.index + 5) === "false") {
+            html += '<span class="token-literal">false</span>';
+            parser.index += 5;
+          } else if (text.slice(parser.index, parser.index + 4) === "null") {
+            html += '<span class="token-literal">null</span>';
+            parser.index += 4;
+          } else if ("{}[]:,".indexOf(ch) !== -1) {
+            html += '<span class="token-punc">' + escapeHtml(ch) + "</span>";
+            parser.index += 1;
+          } else {
+            html += escapeHtml(ch);
+            parser.index += 1;
+          }
+        }
+        return html;
+      }
+
+      function isWhitespace(ch) {
+        return ch === " " || ch === "\n" || ch === "\r" || ch === "\t";
+      }
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, function (ch) {
+          if (ch === "&") return "&amp;";
+          if (ch === "<") return "&lt;";
+          if (ch === ">") return "&gt;";
+          if (ch === "\"") return "&quot;";
+          return "&#39;";
+        });
+      }
+
+      function summarize(node) {
+        var count = 0;
+        walk(node);
+        return {
+          type: node.type === "object" ? "对象" : node.type === "array" ? "数组" : node.type === "string" ? "字符串" : node.type === "number" ? "数字" : "字面量",
+          count: count
+        };
+
+        function walk(current) {
+          count += 1;
+          if (current.type === "object") {
+            current.entries.forEach(function (entry) {
+              walk(entry.value);
+            });
+          } else if (current.type === "array") {
+            current.items.forEach(walk);
+          }
+        }
+      }
+
+      function getPosition(index, text) {
+        var line = 1;
+        var column = 1;
+        for (var i = 0; i < index && i < text.length; i += 1) {
+          if (text.charAt(i) === "\n") {
+            line += 1;
+            column = 1;
+          } else {
+            column += 1;
+          }
+        }
+        return { line: line, column: column };
+      }
+
+      function errorSnippet(error) {
+        var text = error.source || "";
+        var start = Math.max(0, error.index - 24);
+        var end = Math.min(text.length, error.index + 24);
+        var snippet = text.slice(start, end);
+        var marker = new Array(error.index - start + 1).join(" ") + "^";
+        return snippet + "\n" + marker;
+      }
+
+      function render() {
+        var text = input.value;
+        charCount.textContent = text.length + " 字符";
+        lineCount.textContent = Math.max(1, text.split("\n").length) + " 行";
+
+        if (!text.trim()) {
+          latestFormatted = "";
+          inputStatus.textContent = "等待输入";
+          inputStatus.classList.remove("bad");
+          renderStatus.textContent = "待解析";
+          renderStatus.classList.remove("bad");
+          typeInfo.textContent = "类型：-";
+          sizeInfo.textContent = "节点：-";
+          output.innerHTML = '<code class="empty">在左侧输入合法 JSON 后，这里会显示格式化结果。</code>';
+          return;
+        }
+
+        try {
+          var parsed = parseJsonLossless(text);
+          latestFormatted = formatNode(parsed, 0);
+          var summary = summarize(parsed);
+          inputStatus.textContent = "合法 JSON";
+          inputStatus.classList.remove("bad");
+          renderStatus.textContent = "已渲染";
+          renderStatus.classList.remove("bad");
+          typeInfo.textContent = "类型：" + summary.type;
+          sizeInfo.textContent = "节点：" + summary.count;
+          output.innerHTML = "<code>" + highlight(latestFormatted) + "</code>";
+        } catch (err) {
+          latestFormatted = "";
+          var message = err && err.message ? err.message : "JSON 解析失败。";
+          var pos = err instanceof JsonParseError ? getPosition(err.index, err.source) : { line: "-", column: "-" };
+          inputStatus.textContent = "JSON 不合法";
+          inputStatus.classList.add("bad");
+          renderStatus.textContent = "解析失败";
+          renderStatus.classList.add("bad");
+          typeInfo.textContent = "类型：-";
+          sizeInfo.textContent = "节点：-";
+          output.innerHTML = '<div class="error"><strong>解析失败</strong><div>' + escapeHtml(message) + '</div><div>位置：第 ' + escapeHtml(pos.line) + ' 行，第 ' + escapeHtml(pos.column) + ' 列</div>' + (err instanceof JsonParseError ? '<div class="snippet">' + escapeHtml(errorSnippet(err)) + '</div>' : "") + "</div>";
+        }
+      }
+
+      function showToast(message) {
+        window.clearTimeout(toastTimer);
+        toast.textContent = message;
+        toast.classList.add("show");
+        toastTimer = window.setTimeout(function () {
+          toast.classList.remove("show");
+        }, 1500);
+      }
+
+      function copyText(text) {
+        if (!text) {
+          showToast("没有可复制的格式化结果");
+          return;
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () {
+            showToast("已复制格式化 JSON");
+          }, fallbackCopy);
+        } else {
+          fallbackCopy();
+        }
+
+        function fallbackCopy() {
+          var temp = document.createElement("textarea");
+          temp.value = text;
+          temp.setAttribute("readonly", "readonly");
+          temp.style.position = "fixed";
+          temp.style.left = "-9999px";
+          document.body.appendChild(temp);
+          temp.select();
+          try {
+            document.execCommand("copy");
+            showToast("已复制格式化 JSON");
+          } catch (err) {
+            showToast("复制失败，请手动选择结果");
+          }
+          document.body.removeChild(temp);
+        }
+      }
+
+      input.addEventListener("input", render);
+      input.addEventListener("keydown", function (event) {
+        if (event.key === "Tab") {
+          event.preventDefault();
+          var start = input.selectionStart;
+          var end = input.selectionEnd;
+          input.value = input.value.slice(0, start) + "  " + input.value.slice(end);
+          input.selectionStart = input.selectionEnd = start + 2;
+          render();
+        }
+      });
+
+      copyBtn.addEventListener("click", function () {
+        copyText(latestFormatted);
+      });
+
+      clearBtn.addEventListener("click", function () {
+        input.value = "";
+        input.focus();
+        render();
+      });
+
+      sampleBtn.addEventListener("click", function () {
+        input.value = '{"id":9223372036854775807,"orderNo":123456789012345678901234567890,"user":{"name":"Alice","active":true,"roles":["admin","editor"]},"items":[{"sku":"A-001","price":19.99},{"sku":"B-002","price":0}],"note":"大整数不会丢精度"}';
+        input.focus();
+        render();
+      });
+
+      render();
+    }());
+  </script>
+</body>
+</html>

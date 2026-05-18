@@ -1,0 +1,1435 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IELTS Word Practice Remote</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f0f9ff;
+      --surface: #ffffff;
+      --surface-soft: #e0f2fe;
+      --ink: #0c4a6e;
+      --muted: #475569;
+      --line: #bae6fd;
+      --primary: #0284c7;
+      --primary-dark: #0369a1;
+      --accent: #fbbf24;
+      --accent-dark: #b45309;
+      --ok: #15803d;
+      --ok-bg: #dcfce7;
+      --bad: #b91c1c;
+      --bad-bg: #fee2e2;
+      --shadow: 0 18px 45px rgba(12, 74, 110, 0.12);
+      --soft-shadow: 0 8px 24px rgba(12, 74, 110, 0.08);
+      font-family: "Fira Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(224, 242, 254, 0.82)),
+        var(--bg);
+      color: var(--ink);
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button,
+    .topic-card,
+    .mode-option {
+      cursor: pointer;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+    }
+
+    a:focus-visible,
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible {
+      outline: 3px solid rgba(251, 191, 36, 0.7);
+      outline-offset: 3px;
+    }
+
+    .skip-link {
+      position: absolute;
+      left: 16px;
+      top: -80px;
+      z-index: 10;
+      border-radius: 8px;
+      background: var(--ink);
+      color: white;
+      padding: 10px 14px;
+      text-decoration: none;
+      transition: top 180ms ease;
+    }
+
+    .skip-link:focus {
+      top: 16px;
+    }
+
+    .app-shell {
+      width: min(1160px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 40px;
+    }
+
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 44px;
+      height: 44px;
+      place-items: center;
+      border: 2px solid #7dd3fc;
+      border-radius: 12px;
+      background: #ffffff;
+      box-shadow: 0 5px 0 #bae6fd;
+      color: var(--primary-dark);
+    }
+
+    .brand-title {
+      margin: 0;
+      font-size: clamp(1.25rem, 2vw, 1.75rem);
+      line-height: 1.1;
+    }
+
+    .brand-subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .view {
+      display: none;
+    }
+
+    .view.active {
+      display: block;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.08fr) minmax(310px, 0.92fr);
+      gap: 20px;
+      align-items: stretch;
+    }
+
+    .panel {
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: var(--shadow);
+    }
+
+    .intro-panel {
+      padding: clamp(24px, 5vw, 44px);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      border: 1px solid #7dd3fc;
+      border-radius: 999px;
+      background: #e0f2fe;
+      padding: 7px 12px;
+      color: #075985;
+      font-size: 0.86rem;
+      font-weight: 700;
+    }
+
+    .intro-panel h2 {
+      max-width: 780px;
+      margin: 0;
+      font-size: clamp(2.1rem, 5vw, 4.3rem);
+      line-height: 1.02;
+      letter-spacing: 0;
+    }
+
+    .intro-copy {
+      max-width: 680px;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: clamp(1rem, 2vw, 1.14rem);
+      line-height: 1.72;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 26px;
+    }
+
+    .format-panel {
+      padding: 24px;
+    }
+
+    .section-title {
+      margin: 0 0 12px;
+      font-size: 1.1rem;
+      line-height: 1.25;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .format-list {
+      margin: 16px 0 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 12px;
+    }
+
+    .format-list li {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 10px;
+      align-items: start;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .step-dot {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border: 2px solid #7dd3fc;
+      border-radius: 8px;
+      background: #f0f9ff;
+      color: var(--primary-dark);
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .code-sample {
+      margin: 18px 0 0;
+      overflow-x: auto;
+      border: 1px solid #bae6fd;
+      border-radius: 8px;
+      background: #082f49;
+      color: #e0f2fe;
+      padding: 14px;
+      font-family: "Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.82rem;
+      line-height: 1.55;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 44px;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-weight: 800;
+      text-decoration: none;
+      transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease;
+      user-select: none;
+    }
+
+    .btn svg {
+      flex: 0 0 auto;
+    }
+
+    .btn-primary {
+      border-color: #0369a1;
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 5px 0 #075985;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+    }
+
+    .btn-accent {
+      border-color: #d97706;
+      background: var(--accent);
+      color: #713f12;
+      box-shadow: 0 5px 0 #d97706;
+    }
+
+    .btn-accent:hover:not(:disabled) {
+      background: #f59e0b;
+      transform: translateY(-1px);
+    }
+
+    .btn-ghost {
+      border-color: #7dd3fc;
+      background: #ffffff;
+      color: #075985;
+      box-shadow: 0 4px 0 #bae6fd;
+    }
+
+    .btn-ghost:hover:not(:disabled) {
+      border-color: #38bdf8;
+      background: #e0f2fe;
+      transform: translateY(-1px);
+    }
+
+    .btn:active:not(:disabled) {
+      transform: translateY(2px);
+      box-shadow: none;
+    }
+
+    .btn:disabled {
+      border-color: #cbd5e1;
+      background: #e2e8f0;
+      color: #64748b;
+      box-shadow: none;
+    }
+
+    .dashboard {
+      display: grid;
+      gap: 18px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .stat {
+      padding: 18px;
+    }
+
+    .stat-value {
+      display: block;
+      font-size: clamp(1.65rem, 3vw, 2.35rem);
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .stat-label {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    .topics-panel {
+      padding: 20px;
+    }
+
+    .topic-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .mode-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .mode-option input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .mode-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 38px;
+      border: 2px solid #bae6fd;
+      border-radius: 8px;
+      background: #ffffff;
+      padding: 8px 12px;
+      color: #075985;
+      font-weight: 800;
+      transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .mode-option input:checked + .mode-pill {
+      border-color: var(--primary);
+      background: #e0f2fe;
+      color: var(--primary-dark);
+    }
+
+    .topic-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+    }
+
+    .topic-card {
+      width: 100%;
+      min-height: 132px;
+      text-align: left;
+      border: 2px solid #bae6fd;
+      border-radius: 8px;
+      background: #ffffff;
+      padding: 16px;
+      color: var(--ink);
+      box-shadow: var(--soft-shadow);
+      transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease;
+    }
+
+    .topic-card:hover {
+      border-color: #38bdf8;
+      background: #f0f9ff;
+      transform: translateY(-2px);
+    }
+
+    .topic-card strong {
+      display: block;
+      font-size: 1.1rem;
+    }
+
+    .topic-card span {
+      display: block;
+      margin-top: 10px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .topic-card .topic-count {
+      display: inline-flex;
+      margin-top: 14px;
+      border-radius: 999px;
+      background: #e0f2fe;
+      padding: 5px 10px;
+      color: #075985;
+      font-weight: 800;
+      font-size: 0.86rem;
+    }
+
+    .alerts {
+      display: grid;
+      gap: 10px;
+    }
+
+    .alert {
+      border: 1px solid #f59e0b;
+      border-radius: 8px;
+      background: #fffbeb;
+      padding: 12px 14px;
+      color: #713f12;
+      line-height: 1.55;
+    }
+
+    .alert.error {
+      border-color: #fecaca;
+      background: #fef2f2;
+      color: #991b1b;
+    }
+
+    .practice-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .practice-main {
+      padding: clamp(18px, 4vw, 30px);
+    }
+
+    .practice-side {
+      padding: 18px;
+      position: sticky;
+      top: 18px;
+    }
+
+    .practice-topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .topic-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      border: 1px solid #7dd3fc;
+      border-radius: 999px;
+      background: #e0f2fe;
+      padding: 7px 12px;
+      color: #075985;
+      font-weight: 900;
+    }
+
+    .progress-text {
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .progress-bar {
+      overflow: hidden;
+      width: 100%;
+      height: 12px;
+      border: 1px solid #7dd3fc;
+      border-radius: 999px;
+      background: #e0f2fe;
+    }
+
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #0284c7, #fbbf24);
+      transition: width 220ms ease;
+    }
+
+    .prompt-card {
+      border: 2px solid #bae6fd;
+      border-radius: 8px;
+      background: #f8fafc;
+      padding: clamp(18px, 4vw, 26px);
+    }
+
+    .prompt-label {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-weight: 900;
+      font-size: 0.9rem;
+    }
+
+    .meaning {
+      margin: 0;
+      font-size: clamp(1.35rem, 3vw, 2rem);
+      line-height: 1.45;
+      font-weight: 900;
+    }
+
+    .sentence {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 7px;
+      margin-top: 24px;
+      color: #082f49;
+      font-size: clamp(1.05rem, 2vw, 1.25rem);
+      line-height: 2.35;
+    }
+
+    .given-token {
+      display: inline-flex;
+      align-items: center;
+      min-height: 40px;
+      border-radius: 6px;
+      background: #e0f2fe;
+      padding: 2px 7px;
+      font-weight: 800;
+    }
+
+    .punct {
+      margin-left: -4px;
+      font-weight: 900;
+    }
+
+    .word-blank {
+      width: clamp(76px, 10vw, 150px);
+      min-height: 42px;
+      border: 2px solid #94a3b8;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #082f49;
+      padding: 7px 9px;
+      font-weight: 900;
+      text-align: center;
+      transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+    }
+
+    .word-blank.correct {
+      border-color: var(--ok);
+      background: var(--ok-bg);
+      color: #14532d;
+    }
+
+    .word-blank.incorrect {
+      border-color: var(--bad);
+      background: var(--bad-bg);
+      color: #7f1d1d;
+    }
+
+    .status-line {
+      min-height: 28px;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .status-line.done {
+      color: var(--ok);
+    }
+
+    .side-list {
+      display: grid;
+      gap: 10px;
+      margin: 14px 0 0;
+      padding: 0;
+      list-style: none;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .side-list li {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 8px;
+      align-items: start;
+    }
+
+    .completion {
+      padding: clamp(24px, 5vw, 44px);
+      text-align: center;
+    }
+
+    .completion h2 {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 3.4rem);
+      line-height: 1.08;
+    }
+
+    .completion p {
+      max-width: 620px;
+      margin: 16px auto 0;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 1.08rem;
+    }
+
+    .completion-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 920px) {
+      .hero,
+      .practice-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .practice-side {
+        position: static;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .app-shell {
+        width: min(100% - 24px, 1160px);
+        padding-top: 18px;
+      }
+
+      .app-header,
+      .topic-toolbar,
+      .practice-topline {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .header-actions,
+      .hero-actions,
+      .mode-group {
+        width: 100%;
+      }
+
+      .btn,
+      .mode-option,
+      .mode-pill {
+        width: 100%;
+      }
+
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .word-blank {
+        width: min(42vw, 150px);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+
+  <div class="app-shell">
+    <header class="app-header" aria-label="应用顶部栏">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5V5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5"></path>
+            <path d="M8 7h7"></path>
+            <path d="M8 11h8"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">IELTS Word Practice</h1>
+          <p class="brand-subtitle">远程题库 · 半句填空 · 即时校验</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-ghost hidden" type="button" id="backToTopicsBtn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m12 19-7-7 7-7"></path>
+            <path d="M19 12H5"></path>
+          </svg>
+          返回 topics
+        </button>
+        <button class="btn btn-ghost hidden" type="button" id="restartBtn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
+            <path d="M21 3v6h-6"></path>
+          </svg>
+          重新开始
+        </button>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="view active" id="startView" aria-labelledby="startTitle">
+        <div class="hero">
+          <div class="panel intro-panel">
+            <span class="eyebrow">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 20h9"></path>
+                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+              </svg>
+              Remote Static Practice
+            </span>
+            <h2 id="startTitle">选择远程词表，开始雅思句子填空。</h2>
+            <p class="intro-copy">页面会从部署后的静态目录读取 <code>question-bank/manifest.json</code>，再按清单加载 `.txt` 词表。每个 topic 对应一个文件，中文提示保留，英文句子只挖空题库指定的核心单词并实时校验。</p>
+            <div class="hero-actions">
+              <button class="btn btn-primary" type="button" id="reloadBankBtn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
+                  <path d="M21 3v6h-6"></path>
+                </svg>
+                重新获取词表
+              </button>
+              <a class="btn btn-ghost" href="../">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="m12 19-7-7 7-7"></path>
+                  <path d="M19 12H5"></path>
+                </svg>
+                返回主页
+              </a>
+            </div>
+          </div>
+
+          <aside class="panel format-panel" aria-labelledby="formatTitle">
+            <h2 class="section-title" id="formatTitle">题库格式</h2>
+            <p class="muted">题库放在 <code>question-bank/</code>，并由 <code>manifest.json</code> 公开文件列表。</p>
+            <ul class="format-list">
+              <li><span class="step-dot">1</span><span>页面先读取 <code>./question-bank/manifest.json</code>。</span></li>
+              <li><span class="step-dot">2</span><span>每行用 Tab 分成三列：中文、英文完整句子、最多 3 个填空词。</span></li>
+              <li><span class="step-dot">3</span><span>填空词用英文逗号分隔，必须出现在英文句子中。</span></li>
+            </ul>
+            <pre class="code-sample">政府应投资公共交通，以减少城市交通拥堵。	Governments should invest in public transport to reduce traffic congestion in urban areas.	reduce, congestion, urban</pre>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" id="topicsView" aria-labelledby="topicsTitle">
+        <div class="dashboard">
+          <div class="summary-grid">
+            <div class="panel stat">
+              <span class="stat-value" id="topicStat">0</span>
+              <span class="stat-label">Topics</span>
+            </div>
+            <div class="panel stat">
+              <span class="stat-value" id="questionStat">0</span>
+              <span class="stat-label">Total questions</span>
+            </div>
+            <div class="panel stat">
+              <span class="stat-value" id="warningStat">0</span>
+              <span class="stat-label">Warnings</span>
+            </div>
+          </div>
+
+          <div class="alerts" id="alerts" aria-live="polite"></div>
+
+          <div class="panel topics-panel">
+            <div class="topic-toolbar">
+              <div>
+                <h2 class="section-title" id="topicsTitle">选择练习 topic</h2>
+                <p class="muted" id="loadedSource">正在获取远程词表...</p>
+              </div>
+              <fieldset class="mode-group" aria-label="练习顺序">
+                <label class="mode-option">
+                  <input type="radio" name="orderMode" value="sequential" checked>
+                  <span class="mode-pill">顺序练习</span>
+                </label>
+                <label class="mode-option">
+                  <input type="radio" name="orderMode" value="random">
+                  <span class="mode-pill">随机练习</span>
+                </label>
+              </fieldset>
+            </div>
+            <div class="topic-grid" id="topicGrid"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="practiceView" aria-labelledby="practiceTitle">
+        <div class="practice-layout">
+          <div class="panel practice-main">
+            <div class="practice-topline">
+              <span class="topic-badge" id="practiceTopic">Topic</span>
+              <span class="progress-text" id="practiceProgress">1 / 1</span>
+            </div>
+            <div class="progress-bar" aria-hidden="true">
+              <div class="progress-fill" id="progressFill"></div>
+            </div>
+
+            <div class="prompt-card" style="margin-top: 18px;">
+              <p class="prompt-label">中文意思</p>
+              <h2 class="meaning" id="practiceTitle">-</h2>
+              <div class="sentence" id="sentenceArea" aria-label="英文句子填空"></div>
+              <p class="status-line" id="statusLine" aria-live="polite">输入后会实时校验。</p>
+            </div>
+
+            <div class="hero-actions">
+              <button class="btn btn-ghost" type="button" id="hintBtn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M9 18h6"></path>
+                  <path d="M10 22h4"></path>
+                  <path d="M15.09 14c.18-.98.84-1.76 1.59-2.5A5 5 0 1 0 7.32 11.5c.75.74 1.41 1.52 1.59 2.5"></path>
+                </svg>
+                提示
+              </button>
+              <button class="btn btn-accent" type="button" id="nextBtn" disabled>
+                下一题
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M5 12h14"></path>
+                  <path d="m12 5 7 7-7 7"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <aside class="panel practice-side" aria-labelledby="tipsTitle">
+            <h2 class="section-title" id="tipsTitle">练习规则</h2>
+            <ul class="side-list">
+              <li><span class="step-dot">A</span><span>大小写不敏感，首尾空格会自动忽略。</span></li>
+              <li><span class="step-dot">B</span><span>每题最多 3 个核心词填空，默认显示首字母。</span></li>
+              <li><span class="step-dot">C</span><span>全部正确后可按 Enter 或 ArrowRight 下一题。</span></li>
+              <li><span class="step-dot">D</span><span>提示按钮会自动填入当前第一个未完成的空。</span></li>
+            </ul>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" id="doneView" aria-labelledby="doneTitle">
+        <div class="panel completion">
+          <h2 id="doneTitle">本轮练习完成</h2>
+          <p id="doneSummary">你已完成当前 topic 的所有题目。</p>
+          <div class="completion-actions">
+            <button class="btn btn-primary" type="button" id="doneRestartBtn">再练一遍</button>
+            <button class="btn btn-ghost" type="button" id="doneTopicsBtn">返回 topics</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const MANIFEST_URL = "./question-bank/manifest.json";
+    const RANDOM_LIMIT = 50;
+    const STOP_WORDS = new Set(["a", "an", "the", "in", "on", "at", "to", "of", "for", "with", "by", "as", "and", "or", "but", "from", "into", "over", "than"]);
+
+    const state = {
+      topics: [],
+      warnings: [],
+      currentQuestions: [],
+      currentIndex: 0,
+      currentTopicLabel: "",
+      completedCurrent: false
+    };
+
+    const views = {
+      start: document.getElementById("startView"),
+      topics: document.getElementById("topicsView"),
+      practice: document.getElementById("practiceView"),
+      done: document.getElementById("doneView")
+    };
+
+    const topicGrid = document.getElementById("topicGrid");
+    const alerts = document.getElementById("alerts");
+    const backToTopicsBtn = document.getElementById("backToTopicsBtn");
+    const restartBtn = document.getElementById("restartBtn");
+    const hintBtn = document.getElementById("hintBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const statusLine = document.getElementById("statusLine");
+    const sentenceArea = document.getElementById("sentenceArea");
+
+    document.getElementById("reloadBankBtn").addEventListener("click", loadRemoteBank);
+    backToTopicsBtn.addEventListener("click", () => showView("topics"));
+    restartBtn.addEventListener("click", restartCurrentTopic);
+    hintBtn.addEventListener("click", revealHint);
+    nextBtn.addEventListener("click", goNext);
+    document.getElementById("doneRestartBtn").addEventListener("click", restartCurrentTopic);
+    document.getElementById("doneTopicsBtn").addEventListener("click", () => showView("topics"));
+
+    document.addEventListener("keydown", (event) => {
+      if (!views.practice.classList.contains("active")) return;
+      if (event.key !== "Enter" && event.key !== "ArrowRight") return;
+      if (state.completedCurrent) {
+        event.preventDefault();
+        goNext();
+        return;
+      }
+      if (event.key === "Enter") {
+        const nextBlank = [...sentenceArea.querySelectorAll("input.word-blank")].find((input) => !input.classList.contains("correct"));
+        if (nextBlank) {
+          event.preventDefault();
+          nextBlank.focus();
+        }
+      }
+    });
+
+    loadRemoteBank();
+
+    async function loadRemoteBank() {
+      setBank([], [], "正在获取远程词表...");
+
+      try {
+        const manifestResponse = await fetch(`${MANIFEST_URL}?v=${Date.now()}`, { cache: "no-store" });
+        if (!manifestResponse.ok) {
+          throw new Error(`manifest 请求失败：HTTP ${manifestResponse.status}`);
+        }
+
+        const manifest = await manifestResponse.json();
+        const entries = normalizeManifest(manifest);
+        if (!entries.length) {
+          setBank([], [`${MANIFEST_URL}: 没有配置任何 .txt 词表。`], "远程词表清单为空。");
+          return;
+        }
+
+        const topics = [];
+        const warnings = [];
+
+        for (const entry of entries) {
+          try {
+            const response = await fetch(`${entry.url}?v=${Date.now()}`, { cache: "no-store" });
+            if (!response.ok) {
+              warnings.push(`${entry.path}: 请求失败，HTTP ${response.status}。`);
+              continue;
+            }
+
+            const text = await response.text();
+            const parsed = parseTopicFile(text, entry.path);
+            warnings.push(...parsed.warnings);
+            if (parsed.questions.length) {
+              topics.push({ name: entry.name, questions: parsed.questions });
+            } else {
+              warnings.push(`${entry.path}: 没有可用题目。`);
+            }
+          } catch (error) {
+            warnings.push(`${entry.path}: ${error.message}`);
+          }
+        }
+
+        setBank(topics, warnings, `已从 ${MANIFEST_URL} 加载 ${topics.length} 个词表。`);
+      } catch (error) {
+        setBank([], [`${MANIFEST_URL}: ${error.message}`], "远程词表加载失败。");
+      }
+    }
+
+    function setBank(topics, warnings, sourceText) {
+      state.topics = topics;
+      state.warnings = warnings;
+      document.getElementById("loadedSource").textContent = sourceText;
+      renderTopicSummary();
+      renderAlerts();
+      renderTopics();
+      showView(topics.length || warnings.length ? "topics" : "start");
+    }
+
+    function normalizeManifest(manifest) {
+      const rawEntries = Array.isArray(manifest) ? manifest : manifest.files;
+      if (!Array.isArray(rawEntries)) return [];
+
+      return rawEntries
+        .map((entry) => {
+          if (!entry) return null;
+          const path = typeof entry === "string" ? entry : entry.file || entry.path || entry.url;
+          if (!path || !path.toLowerCase().endsWith(".txt")) return null;
+
+          const normalizedPath = path.replace(/^\.?\//, "");
+          const fileName = normalizedPath.split("/").pop();
+          const name = typeof entry === "object" && entry.name ? entry.name : cleanTopicName(fileName);
+          const url = normalizedPath.includes("/") ? normalizedPath : `./question-bank/${encodeURIComponent(normalizedPath)}`;
+          return { name, path: normalizedPath, url };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    function parseTopicFile(text, fileName) {
+      const questions = [];
+      const warnings = [];
+      const seen = new Set();
+
+      text.split(/\r?\n/).forEach((rawLine, index) => {
+        const lineNo = index + 1;
+        const line = rawLine.trim();
+        if (!line || line.startsWith("#")) return;
+
+        const columns = rawLine.split("\t").map((value) => value.trim());
+        if (columns.length < 2) {
+          warnings.push(`${fileName}:${lineNo} 至少需要中文和英文两列。`);
+          return;
+        }
+
+        if (columns.length > 3) {
+          warnings.push(`${fileName}:${lineNo} 超过三列，已忽略多余列。`);
+        }
+
+        const [meaning, sentence, targetText = ""] = columns;
+        if (!meaning || !sentence) {
+          warnings.push(`${fileName}:${lineNo} 中文或英文为空。`);
+          return;
+        }
+
+        let targets = parseTargetWords(targetText);
+        if (!targets.length) {
+          targets = autoPickTargetWords(sentence);
+          warnings.push(`${fileName}:${lineNo} 缺少第三列填空词，已自动选择：${targets.join(", ")}。`);
+        }
+
+        const targetIssue = validateTargetWords(sentence, targets);
+        if (targetIssue) {
+          warnings.push(`${fileName}:${lineNo} ${targetIssue}`);
+          return;
+        }
+
+        const key = `${meaning}\n${sentence}`.toLowerCase();
+        if (seen.has(key)) {
+          warnings.push(`${fileName}:${lineNo} 重复题目已忽略。`);
+          return;
+        }
+        seen.add(key);
+        questions.push({ meaning, sentence, targets, source: `${fileName}:${lineNo}` });
+      });
+
+      return { questions, warnings };
+    }
+
+    function cleanTopicName(name) {
+      return name.replace(/\.txt$/i, "").replace(/[-_]+/g, " ").trim() || "Untitled";
+    }
+
+    function renderTopicSummary() {
+      const totalQuestions = state.topics.reduce((sum, topic) => sum + topic.questions.length, 0);
+      document.getElementById("topicStat").textContent = state.topics.length;
+      document.getElementById("questionStat").textContent = totalQuestions;
+      document.getElementById("warningStat").textContent = state.warnings.length;
+    }
+
+    function renderAlerts() {
+      alerts.innerHTML = "";
+      if (!state.warnings.length) return;
+
+      state.warnings.slice(0, 8).forEach((message) => {
+        const alert = document.createElement("div");
+        alert.className = message.includes("缺少") || message.includes("为空") ? "alert error" : "alert";
+        alert.textContent = message;
+        alerts.appendChild(alert);
+      });
+
+      if (state.warnings.length > 8) {
+        const more = document.createElement("div");
+        more.className = "alert";
+        more.textContent = `还有 ${state.warnings.length - 8} 条提示未显示，请检查题库文件。`;
+        alerts.appendChild(more);
+      }
+    }
+
+    function renderTopics() {
+      topicGrid.innerHTML = "";
+      if (!state.topics.length) {
+        const empty = document.createElement("div");
+        empty.className = "alert";
+        empty.textContent = "暂无可练习题目。请检查 question-bank/manifest.json 是否存在，并确认清单中的 .txt 文件可以访问。";
+        topicGrid.appendChild(empty);
+        return;
+      }
+
+      const allButton = makeTopicButton({
+        name: `随机 ${RANDOM_LIMIT} 题`,
+        description: "从全部词表混合抽题",
+        count: Math.min(RANDOM_LIMIT, state.topics.reduce((sum, topic) => sum + topic.questions.length, 0)),
+        onClick: () => {
+          const allQuestions = state.topics.flatMap((topic) => topic.questions.map((q) => ({ ...q, topic: topic.name })));
+          startPractice(`随机 ${Math.min(RANDOM_LIMIT, allQuestions.length)} 题`, shuffle([...allQuestions]).slice(0, RANDOM_LIMIT), { keepOrder: true });
+        }
+      });
+      topicGrid.appendChild(allButton);
+
+      state.topics.forEach((topic) => {
+        topicGrid.appendChild(makeTopicButton({
+          name: topic.name,
+          description: "按当前 topic 练习",
+          count: topic.questions.length,
+          onClick: () => startPractice(topic.name, topic.questions.map((q) => ({ ...q, topic: topic.name })))
+        }));
+      });
+    }
+
+    function makeTopicButton({ name, description, count, onClick }) {
+      const button = document.createElement("button");
+      button.className = "topic-card";
+      button.type = "button";
+      button.innerHTML = `<strong></strong><span></span><span class="topic-count"></span>`;
+      button.querySelector("strong").textContent = name;
+      button.querySelector("span").textContent = description;
+      button.querySelector(".topic-count").textContent = `${count} 题`;
+      button.addEventListener("click", onClick);
+      return button;
+    }
+
+    function startPractice(label, questions, options = {}) {
+      const orderMode = document.querySelector("input[name='orderMode']:checked").value;
+      state.currentQuestions = options.keepOrder || orderMode === "sequential" ? [...questions] : shuffle([...questions]);
+      state.currentIndex = 0;
+      state.currentTopicLabel = label;
+      renderQuestion();
+      showView("practice");
+    }
+
+    function restartCurrentTopic() {
+      if (!state.currentQuestions.length) {
+        showView("topics");
+        return;
+      }
+      const orderMode = document.querySelector("input[name='orderMode']:checked").value;
+      state.currentQuestions = orderMode === "random" ? shuffle([...state.currentQuestions]) : [...state.currentQuestions];
+      state.currentIndex = 0;
+      renderQuestion();
+      showView("practice");
+    }
+
+    function renderQuestion() {
+      const question = state.currentQuestions[state.currentIndex];
+      if (!question) {
+        showCompletion();
+        return;
+      }
+
+      state.completedCurrent = false;
+      document.getElementById("practiceTopic").textContent = state.currentTopicLabel;
+      document.getElementById("practiceProgress").textContent = `${state.currentIndex + 1} / ${state.currentQuestions.length}`;
+      document.getElementById("progressFill").style.width = `${Math.round((state.currentIndex / state.currentQuestions.length) * 100)}%`;
+      document.getElementById("practiceTitle").textContent = question.meaning;
+      statusLine.textContent = "输入后会实时校验。";
+      statusLine.className = "status-line";
+      hintBtn.disabled = false;
+      nextBtn.disabled = true;
+      sentenceArea.innerHTML = "";
+
+      const tokens = tokenize(question.sentence);
+      const targetCounts = buildTargetCounts(question.targets && question.targets.length ? question.targets : autoPickTargetWords(question.sentence));
+      let blankCount = 0;
+
+      tokens.forEach((token) => {
+        if (token.type === "punct") {
+          const span = document.createElement("span");
+          span.className = "punct";
+          span.textContent = token.value;
+          sentenceArea.appendChild(span);
+          return;
+        }
+
+        const normalized = normalizeAnswer(token.value);
+        const shouldBlank = (targetCounts.get(normalized) || 0) > 0;
+
+        if (!shouldBlank) {
+          const span = document.createElement("span");
+          span.className = "given-token";
+          span.textContent = token.value;
+          sentenceArea.appendChild(span);
+          return;
+        }
+
+        targetCounts.set(normalized, targetCounts.get(normalized) - 1);
+        blankCount += 1;
+        const input = document.createElement("input");
+        input.className = "word-blank";
+        input.type = "text";
+        input.autocomplete = "off";
+        input.autocapitalize = "off";
+        input.spellcheck = false;
+        input.inputMode = "text";
+        input.setAttribute("aria-label", `第 ${blankCount} 个空，答案 ${token.value.length} 个字母`);
+        input.dataset.answer = normalized;
+        input.dataset.hint = token.value.slice(0, 1);
+        input.value = input.dataset.hint;
+        input.style.width = `${Math.min(Math.max(token.value.length + 3, 7), 16)}ch`;
+        input.addEventListener("input", () => validateInput(input));
+        input.addEventListener("keydown", (event) => {
+          const hintLength = input.dataset.hint.length;
+          if ((event.key === "Backspace" || event.key === "Delete") && input.selectionStart <= hintLength && input.selectionEnd <= hintLength) {
+            event.preventDefault();
+            const previous = previousBlank(input);
+            if (event.key === "Backspace" && previous) previous.focus();
+            return;
+          }
+          if (event.key === "Backspace" && input.value === input.dataset.hint) {
+            const previous = previousBlank(input);
+            if (previous) previous.focus();
+          }
+        });
+        input.addEventListener("focus", () => placeCaretAfterHint(input));
+        sentenceArea.appendChild(input);
+      });
+
+      const firstInput = sentenceArea.querySelector("input.word-blank");
+      if (firstInput) {
+        requestAnimationFrame(() => firstInput.focus());
+      } else {
+        statusLine.textContent = "本题没有可填空词，请检查题库第三列。";
+        hintBtn.disabled = true;
+      }
+    }
+
+    function tokenize(sentence) {
+      const matches = sentence.match(/[A-Za-z]+(?:[-'][A-Za-z]+)*|[.,!?;:]/g);
+      if (!matches) return [];
+      return matches.map((value) => ({
+        value,
+        type: /^[A-Za-z]/.test(value) ? "word" : "punct"
+      }));
+    }
+
+    function parseTargetWords(value) {
+      return String(value || "")
+        .split(/[,，/、;]/)
+        .map((item) => normalizeAnswer(item))
+        .filter(Boolean);
+    }
+
+    function buildTargetCounts(targets) {
+      const counts = new Map();
+      targets.forEach((target) => {
+        const normalized = normalizeAnswer(target);
+        if (!normalized) return;
+        counts.set(normalized, (counts.get(normalized) || 0) + 1);
+      });
+      return counts;
+    }
+
+    function validateTargetWords(sentence, targets) {
+      if (targets.length > 3) return "填空词不能超过 3 个。";
+      if (!targets.length) return "第三列至少需要 1 个填空词。";
+
+      const sentenceCounts = buildTargetCounts(tokenize(sentence).filter((token) => token.type === "word").map((token) => token.value));
+      const targetCounts = buildTargetCounts(targets);
+      for (const [target, count] of targetCounts.entries()) {
+        if ((sentenceCounts.get(target) || 0) < count) {
+          return `填空词 "${target}" 未在英文句子中出现。`;
+        }
+      }
+      return "";
+    }
+
+    function autoPickTargetWords(sentence) {
+      const words = tokenize(sentence)
+        .filter((token) => token.type === "word")
+        .map((token) => token.value)
+        .filter((word) => {
+          const normalized = normalizeAnswer(word);
+          return normalized.length >= 5 && !STOP_WORDS.has(normalized);
+        });
+      return words.slice(Math.max(0, words.length - 5)).slice(0, 3).map((word) => normalizeAnswer(word));
+    }
+
+    function validateInput(input) {
+      preserveHint(input);
+      const value = normalizeAnswer(input.value);
+      input.classList.remove("correct", "incorrect");
+
+      if (value === input.dataset.answer) {
+        input.classList.add("correct");
+        const next = nextBlank(input);
+        if (next && !next.classList.contains("correct")) next.focus();
+      } else if (value === input.dataset.hint.toLowerCase()) {
+        updateQuestionCompletion();
+        return;
+      } else {
+        input.classList.add("incorrect");
+      }
+
+      updateQuestionCompletion();
+    }
+
+    function revealHint() {
+      const target = [...sentenceArea.querySelectorAll("input.word-blank")].find((input) => !input.classList.contains("correct"));
+      if (!target) return;
+
+      target.value = target.dataset.answer;
+      validateInput(target);
+
+      if (!state.completedCurrent) {
+        const remaining = [...sentenceArea.querySelectorAll("input.word-blank")].filter((input) => !input.classList.contains("correct")).length;
+        statusLine.textContent = `已填入一个提示，还剩 ${remaining} 个空。`;
+        statusLine.className = "status-line";
+      }
+    }
+
+    function preserveHint(input) {
+      const hint = input.dataset.hint || "";
+      if (!hint) return;
+
+      if (!input.value) {
+        input.value = hint;
+        placeCaretAfterHint(input);
+        return;
+      }
+
+      if (!input.value.toLowerCase().startsWith(hint.toLowerCase())) {
+        input.value = hint + input.value.slice(hint.length);
+        placeCaretAfterHint(input);
+      }
+    }
+
+    function placeCaretAfterHint(input) {
+      const hintLength = (input.dataset.hint || "").length;
+      requestAnimationFrame(() => {
+        if (document.activeElement !== input) return;
+        if (input.selectionStart < hintLength) {
+          input.setSelectionRange(hintLength, hintLength);
+        }
+      });
+    }
+
+    function updateQuestionCompletion() {
+      const blanks = [...sentenceArea.querySelectorAll("input.word-blank")];
+      const allDone = blanks.length > 0 && blanks.every((input) => input.classList.contains("correct"));
+      state.completedCurrent = allDone;
+      hintBtn.disabled = allDone;
+      nextBtn.disabled = !allDone;
+
+      if (allDone) {
+        statusLine.textContent = "本题完成，可以进入下一题。";
+        statusLine.className = "status-line done";
+        document.getElementById("progressFill").style.width = `${Math.round(((state.currentIndex + 1) / state.currentQuestions.length) * 100)}%`;
+      } else {
+        const remaining = blanks.filter((input) => !input.classList.contains("correct")).length;
+        statusLine.textContent = remaining === blanks.length ? "输入后会实时校验。" : `还剩 ${remaining} 个空。`;
+        statusLine.className = "status-line";
+      }
+    }
+
+    function goNext() {
+      if (!state.completedCurrent) return;
+      state.currentIndex += 1;
+      if (state.currentIndex >= state.currentQuestions.length) {
+        showCompletion();
+        return;
+      }
+      renderQuestion();
+    }
+
+    function showCompletion() {
+      document.getElementById("doneSummary").textContent = `你已完成 ${state.currentTopicLabel} 的 ${state.currentQuestions.length} 道题。`;
+      document.getElementById("progressFill").style.width = "100%";
+      showView("done");
+    }
+
+    function showView(name) {
+      Object.entries(views).forEach(([key, element]) => {
+        element.classList.toggle("active", key === name);
+      });
+      const inPracticeFlow = name === "practice" || name === "done";
+      backToTopicsBtn.classList.toggle("hidden", !inPracticeFlow);
+      restartBtn.classList.toggle("hidden", !inPracticeFlow);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function normalizeAnswer(value) {
+      return value.trim().toLowerCase().replace(/[.,!?;:]+$/g, "");
+    }
+
+    function nextBlank(input) {
+      const blanks = [...sentenceArea.querySelectorAll("input.word-blank")];
+      return blanks[blanks.indexOf(input) + 1] || null;
+    }
+
+    function previousBlank(input) {
+      const blanks = [...sentenceArea.querySelectorAll("input.word-blank")];
+      return blanks[blanks.indexOf(input) - 1] || null;
+    }
+
+    function shuffle(items) {
+      for (let i = items.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [items[i], items[j]] = [items[j], items[i]];
+      }
+      return items;
+    }
+  </script>
+</body>
+</html>

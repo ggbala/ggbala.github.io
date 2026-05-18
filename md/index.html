@@ -1,0 +1,743 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Markdown URL Editor</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --editor-size: clamp(280px, 42vw, 560px);
+      --bg: #f8f9fb;
+      --panel: #ffffff;
+      --text: #202124;
+      --muted: #5f6368;
+      --line: #d9dde3;
+      --code: #f2f4f7;
+      --accent: #0f766e;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #151515;
+        --panel: #1d1d1d;
+        --text: #ece7dc;
+        --muted: #b8b0a2;
+        --line: #3b3832;
+        --code: #282621;
+        --accent: #5eead4;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    .workspace {
+      position: relative;
+      display: grid;
+      grid-template-columns: 0 minmax(0, 1fr);
+      width: 100vw;
+      height: 100vh;
+      height: 100svh;
+      height: 100dvh;
+      min-height: 100vh;
+      background: var(--panel);
+    }
+
+    .workspace.editor-open {
+      grid-template-columns: var(--editor-size) minmax(0, 1fr);
+    }
+
+    .editor-pane {
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    textarea,
+    .preview {
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      border: 0;
+      outline: 0;
+      color: var(--text);
+      background: var(--panel);
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    textarea {
+      display: block;
+      resize: none;
+      padding: max(22px, env(safe-area-inset-top)) 24px max(22px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      tab-size: 2;
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+      overflow: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .preview {
+      overflow: auto;
+      padding: max(22px, env(safe-area-inset-top)) max(28px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) 28px;
+      font-family: Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif;
+      contain: layout paint style;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .quick-actions {
+      position: absolute;
+      z-index: 2;
+      left: max(8px, env(safe-area-inset-left));
+      top: max(10px, env(safe-area-inset-top));
+      display: grid;
+      gap: 8px;
+    }
+
+    .action-button {
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      margin: 0;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      background: var(--panel);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+      font: 700 13px/1 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .editor-toggle {
+      font-size: 22px;
+    }
+
+    .workspace.editor-open .quick-actions {
+      left: calc(var(--editor-size) - 18px);
+    }
+
+    .workspace:not(.editor-open) .preview {
+      padding-left: max(60px, calc(env(safe-area-inset-left) + 60px));
+    }
+
+    .action-button:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .file-input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .preview > :first-child {
+      margin-top: 0;
+    }
+
+    .preview > :last-child {
+      margin-bottom: 0;
+    }
+
+    .preview h1,
+    .preview h2,
+    .preview h3,
+    .preview h4,
+    .preview h5,
+    .preview h6 {
+      margin: 1.4em 0 0.55em;
+      line-height: 1.2;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-weight: 720;
+      letter-spacing: 0;
+    }
+
+    .preview h1 {
+      font-size: 2.5rem;
+    }
+
+    .preview h2 {
+      font-size: 1.65rem;
+    }
+
+    .preview h3 {
+      font-size: 1.3rem;
+    }
+
+    .preview p,
+    .preview ul,
+    .preview ol,
+    .preview blockquote,
+    .preview pre,
+    .preview table {
+      margin: 0 0 1em;
+    }
+
+    .preview a {
+      color: var(--accent);
+      text-decoration-thickness: 0.08em;
+      text-underline-offset: 0.16em;
+    }
+
+    .preview blockquote {
+      padding: 0.1em 0 0.1em 1em;
+      border-left: 3px solid var(--line);
+      color: var(--muted);
+    }
+
+    .preview code,
+    .preview pre {
+      border-radius: 6px;
+      background: var(--code);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 0.92em;
+    }
+
+    .preview code {
+      padding: 0.12em 0.32em;
+    }
+
+    .preview pre {
+      overflow: auto;
+      padding: 1em;
+      line-height: 1.55;
+    }
+
+    .preview pre code {
+      padding: 0;
+      background: transparent;
+      border-radius: 0;
+      font-size: inherit;
+    }
+
+    .preview img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 6px;
+    }
+
+    .preview table {
+      width: 100%;
+      border-collapse: collapse;
+      display: block;
+      overflow-x: auto;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.95em;
+    }
+
+    .preview th,
+    .preview td {
+      padding: 0.55em 0.7em;
+      border: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .preview hr {
+      height: 1px;
+      border: 0;
+      margin: 1.6em 0;
+      background: var(--line);
+    }
+
+    @supports (content-visibility: auto) {
+      .preview > * {
+        content-visibility: auto;
+        contain-intrinsic-size: auto 3.5em;
+      }
+
+      .preview > h1,
+      .preview > h2 {
+        contain-intrinsic-size: auto 4.8em;
+      }
+
+      .preview > pre,
+      .preview > table {
+        contain-intrinsic-size: auto 12em;
+      }
+    }
+
+    @media (max-width: 760px) {
+      body {
+        overflow: hidden;
+      }
+
+      .workspace {
+        grid-template-columns: 1fr;
+        grid-template-rows: 0 minmax(0, 1fr);
+        height: 100vh;
+        height: 100svh;
+        min-height: 100svh;
+      }
+
+      .workspace.editor-open {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(220px, 42svh) minmax(0, 1fr);
+      }
+
+      .editor-pane {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      textarea {
+        padding: max(16px, env(safe-area-inset-top)) 16px 16px max(16px, env(safe-area-inset-left));
+      }
+
+      .preview {
+        padding: 18px max(16px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+        font-size: 15.5px;
+      }
+
+      .workspace:not(.editor-open) .preview {
+        padding-left: max(60px, calc(env(safe-area-inset-left) + 60px));
+      }
+
+      .preview h1 {
+        font-size: 2rem;
+      }
+
+      .workspace.editor-open .quick-actions,
+      .quick-actions {
+        left: max(10px, env(safe-area-inset-left));
+        top: max(10px, env(safe-area-inset-top));
+      }
+
+      .workspace.editor-open textarea {
+        padding-left: max(64px, calc(env(safe-area-inset-left) + 64px));
+      }
+    }
+  </style>
+</head>
+<body>
+  <main id="workspace" class="workspace">
+    <section id="editorPane" class="editor-pane">
+      <textarea id="editor" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Markdown 编辑区"></textarea>
+    </section>
+    <div class="quick-actions">
+      <button id="editorToggle" class="action-button editor-toggle" type="button" aria-label="展开编辑栏" aria-controls="editorPane" aria-expanded="false">
+        <span aria-hidden="true">&gt;</span>
+      </button>
+      <button id="importButton" class="action-button import-button" type="button" aria-label="导入 Markdown 文件" title="导入 Markdown 文件">导入</button>
+      <input id="fileImport" class="file-input" type="file" accept=".md,.markdown,text/markdown,text/plain">
+    </div>
+    <article id="preview" class="preview" aria-label="Markdown 预览区"></article>
+  </main>
+
+  <script>
+    (() => {
+      const HASH_PREFIX = "md=z1.";
+      const workspace = document.getElementById("workspace");
+      const editor = document.getElementById("editor");
+      const editorToggle = document.getElementById("editorToggle");
+      const importButton = document.getElementById("importButton");
+      const fileImport = document.getElementById("fileImport");
+      const preview = document.getElementById("preview");
+      const encoder = new TextEncoder();
+      const decoder = new TextDecoder();
+      const nextFrame = window.requestAnimationFrame || ((callback) => setTimeout(callback, 16));
+      let writeTimer = 0;
+      let renderFrame = 0;
+      let lastRendered = null;
+
+      const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      })[char]);
+
+      const decodeEntities = (value) => String(value)
+        .replace(/&amp;/g, "&")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">");
+
+      const safeUrl = (raw, image = false) => {
+        const url = decodeEntities(raw).trim();
+        if (!url || /[\u0000-\u001f\u007f\s]/.test(url)) return "";
+        const lower = url.toLowerCase();
+        if (/^(https?:|mailto:|tel:|#|\/|\.\/|\.\.\/)/.test(lower)) return escapeHtml(url);
+        if (image && /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,/i.test(url)) return escapeHtml(url);
+        if (!/^[a-z][a-z0-9+.-]*:/i.test(url)) return escapeHtml(url);
+        return "";
+      };
+
+      const bytesToBase64Url = (bytes) => {
+        let binary = "";
+        const chunkSize = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+        }
+        return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+      };
+
+      const base64UrlToBytes = (value) => {
+        const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((value.length + 3) % 4);
+        const binary = atob(padded);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+        return bytes;
+      };
+
+      const resetDictionary = () => {
+        const dict = new Map();
+        for (let i = 0; i < 256; i += 1) dict.set(String.fromCharCode(i), i);
+        return dict;
+      };
+
+      const compressBytes = (bytes) => {
+        if (!bytes.length) return new Uint8Array();
+
+        let dict = resetDictionary();
+        let dictSize = 256;
+        let phrase = "";
+        const codes = [];
+
+        for (const byte of bytes) {
+          const char = String.fromCharCode(byte);
+          const combined = phrase + char;
+          if (dict.has(combined)) {
+            phrase = combined;
+          } else {
+            codes.push(dict.get(phrase));
+            if (dictSize < 65535) {
+              dict.set(combined, dictSize);
+              dictSize += 1;
+            }
+            phrase = char;
+          }
+        }
+
+        if (phrase) codes.push(dict.get(phrase));
+
+        const packed = new Uint8Array(codes.length * 2);
+        codes.forEach((code, index) => {
+          packed[index * 2] = code & 255;
+          packed[index * 2 + 1] = code >> 8;
+        });
+        return packed;
+      };
+
+      const decompressBytes = (packed) => {
+        if (!packed.length) return new Uint8Array();
+        if (packed.length % 2) throw new Error("Invalid compressed data");
+
+        const dict = Array.from({ length: 256 }, (_, index) => [index]);
+        const output = [];
+        let previous = null;
+
+        for (let i = 0; i < packed.length; i += 2) {
+          const code = packed[i] | (packed[i + 1] << 8);
+          let entry = dict[code];
+
+          if (!entry && previous && code === dict.length) {
+            entry = previous.concat(previous[0]);
+          }
+
+          if (!entry) throw new Error("Invalid compressed data");
+
+          output.push(...entry);
+
+          if (previous && dict.length < 65535) {
+            dict.push(previous.concat(entry[0]));
+          }
+
+          previous = entry;
+        }
+
+        return new Uint8Array(output);
+      };
+
+      const encodeMarkdown = (markdown) => bytesToBase64Url(compressBytes(encoder.encode(markdown)));
+
+      const decodeMarkdown = (payload) => decoder.decode(decompressBytes(base64UrlToBytes(payload)));
+
+      const splitTableRow = (line) => {
+        const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+        return trimmed.split("|").map((cell) => cell.trim());
+      };
+
+      const isTableSeparator = (line) => {
+        const cells = splitTableRow(line);
+        return cells.length > 1 && cells.every((cell) => /^:?-{3,}:?$/.test(cell));
+      };
+
+      const tableAlign = (cell) => {
+        if (/^:-+:$/.test(cell)) return "center";
+        if (/^-+:$/.test(cell)) return "right";
+        if (/^:-+$/.test(cell)) return "left";
+        return "";
+      };
+
+      const inlineMarkdown = (source) => {
+        const tokens = [];
+        const hold = (html) => {
+          const key = "\u0000" + tokens.length + "\u0000";
+          tokens.push(html);
+          return key;
+        };
+
+        let text = escapeHtml(source);
+
+        text = text.replace(/`([^`]+)`/g, (_, code) => hold(`<code>${code}</code>`));
+
+        text = text.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;[^&]*&quot;)?\)/g, (_, alt, url) => {
+          const src = safeUrl(url, true);
+          return src ? hold(`<img src="${src}" alt="${alt}">`) : "";
+        });
+
+        text = text.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+&quot;[^&]*&quot;)?\)/g, (_, label, url) => {
+          const href = safeUrl(url);
+          return href ? hold(`<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`) : label;
+        });
+
+        text = text
+          .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+          .replace(/__([^_]+)__/g, "<strong>$1</strong>")
+          .replace(/~~([^~]+)~~/g, "<del>$1</del>")
+          .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")
+          .replace(/(^|[^_])_([^_\n]+)_/g, "$1<em>$2</em>");
+
+        return text.replace(/\u0000(\d+)\u0000/g, (_, index) => tokens[Number(index)]);
+      };
+
+      const renderMarkdown = (markdown) => {
+        const lines = markdown.replace(/\r\n?/g, "\n").split("\n");
+        const blocks = [];
+        let i = 0;
+
+        const startsBlock = (line) => {
+          const next = lines[i + 1] || "";
+          return /^(```|~~~)/.test(line)
+            || /^(#{1,6})\s+/.test(line)
+            || /^\s{0,3}([-*_])(?:\s*\1){2,}\s*$/.test(line)
+            || /^\s{0,3}>\s?/.test(line)
+            || /^\s{0,3}(?:[-+*]|\d+\.)\s+/.test(line)
+            || (line.includes("|") && isTableSeparator(next));
+        };
+
+        while (i < lines.length) {
+          const line = lines[i];
+
+          if (!line.trim()) {
+            i += 1;
+            continue;
+          }
+
+          const fence = line.match(/^(```|~~~)\s*([\w-]+)?\s*$/);
+          if (fence) {
+            const marker = fence[1];
+            const code = [];
+            i += 1;
+            while (i < lines.length && !lines[i].startsWith(marker)) {
+              code.push(lines[i]);
+              i += 1;
+            }
+            if (i < lines.length) i += 1;
+            blocks.push(`<pre><code>${escapeHtml(code.join("\n"))}</code></pre>`);
+            continue;
+          }
+
+          const heading = line.match(/^(#{1,6})\s+(.+?)\s*#*\s*$/);
+          if (heading) {
+            const level = heading[1].length;
+            blocks.push(`<h${level}>${inlineMarkdown(heading[2])}</h${level}>`);
+            i += 1;
+            continue;
+          }
+
+          if (/^\s{0,3}([-*_])(?:\s*\1){2,}\s*$/.test(line)) {
+            blocks.push("<hr>");
+            i += 1;
+            continue;
+          }
+
+          if (/^\s{0,3}>\s?/.test(line)) {
+            const quote = [];
+            while (i < lines.length && /^\s{0,3}>\s?/.test(lines[i])) {
+              quote.push(lines[i].replace(/^\s{0,3}>\s?/, ""));
+              i += 1;
+            }
+            blocks.push(`<blockquote>${renderMarkdown(quote.join("\n"))}</blockquote>`);
+            continue;
+          }
+
+          const listMatch = line.match(/^\s{0,3}((?:[-+*])|(?:\d+\.))\s+(.+)$/);
+          if (listMatch) {
+            const ordered = /\d+\./.test(listMatch[1]);
+            const tag = ordered ? "ol" : "ul";
+            const items = [];
+            const pattern = ordered ? /^\s{0,3}\d+\.\s+(.+)$/ : /^\s{0,3}[-+*]\s+(.+)$/;
+            while (i < lines.length) {
+              const item = lines[i].match(pattern);
+              if (!item) break;
+              items.push(`<li>${inlineMarkdown(item[1])}</li>`);
+              i += 1;
+            }
+            blocks.push(`<${tag}>${items.join("")}</${tag}>`);
+            continue;
+          }
+
+          if (line.includes("|") && isTableSeparator(lines[i + 1] || "")) {
+            const headers = splitTableRow(line);
+            const separators = splitTableRow(lines[i + 1]);
+            const rows = [];
+            i += 2;
+            while (i < lines.length && lines[i].includes("|") && lines[i].trim()) {
+              rows.push(splitTableRow(lines[i]));
+              i += 1;
+            }
+            const head = headers.map((cell, index) => {
+              const align = tableAlign(separators[index] || "");
+              return `<th${align ? ` style="text-align:${align}"` : ""}>${inlineMarkdown(cell)}</th>`;
+            }).join("");
+            const body = rows.map((row) => `<tr>${headers.map((_, index) => {
+              const align = tableAlign(separators[index] || "");
+              return `<td${align ? ` style="text-align:${align}"` : ""}>${inlineMarkdown(row[index] || "")}</td>`;
+            }).join("")}</tr>`).join("");
+            blocks.push(`<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`);
+            continue;
+          }
+
+          const paragraph = [line];
+          i += 1;
+          while (i < lines.length && lines[i].trim() && !startsBlock(lines[i])) {
+            paragraph.push(lines[i]);
+            i += 1;
+          }
+          blocks.push(`<p>${inlineMarkdown(paragraph.join("\n")).replace(/\n/g, "<br>")}</p>`);
+        }
+
+        return blocks.join("\n");
+      };
+
+      const readHash = () => {
+        const hash = location.hash.slice(1);
+        if (!hash.startsWith(HASH_PREFIX)) return "";
+        try {
+          return decodeMarkdown(hash.slice(HASH_PREFIX.length));
+        } catch {
+          return "";
+        }
+      };
+
+      const writeHash = (markdown) => {
+        const url = new URL(location.href);
+        url.hash = markdown ? HASH_PREFIX + encodeMarkdown(markdown) : "";
+        history.replaceState(null, "", url);
+      };
+
+      const renderNow = () => {
+        renderFrame = 0;
+        if (editor.value === lastRendered) return;
+        lastRendered = editor.value;
+        preview.innerHTML = renderMarkdown(lastRendered);
+      };
+
+      const scheduleRender = () => {
+        if (renderFrame) return;
+        renderFrame = nextFrame(renderNow);
+      };
+
+      const scheduleWrite = () => {
+        clearTimeout(writeTimer);
+        writeTimer = setTimeout(() => writeHash(editor.value), 260);
+      };
+
+      const replaceMarkdown = (markdown) => {
+        clearTimeout(writeTimer);
+        editor.value = markdown;
+        editor.scrollTop = 0;
+        lastRendered = null;
+        scheduleRender();
+        writeHash(markdown);
+        setEditorOpen(true);
+        nextFrame(() => {
+          preview.scrollTop = 0;
+          editor.setSelectionRange(0, 0);
+        });
+      };
+
+      const syncFromHash = () => {
+        editor.value = readHash();
+        lastRendered = null;
+        scheduleRender();
+      };
+
+      const setEditorOpen = (open) => {
+        workspace.classList.toggle("editor-open", open);
+        editorToggle.setAttribute("aria-expanded", String(open));
+        editorToggle.setAttribute("aria-label", open ? "收起编辑栏" : "展开编辑栏");
+        editorToggle.querySelector("span").textContent = open ? "<" : ">";
+        if (open) nextFrame(() => {
+          try {
+            editor.focus({ preventScroll: true });
+          } catch {
+            editor.focus();
+          }
+        });
+      };
+
+      editor.addEventListener("input", () => {
+        scheduleRender();
+        scheduleWrite();
+      });
+
+      editorToggle.addEventListener("click", () => {
+        setEditorOpen(!workspace.classList.contains("editor-open"));
+      });
+
+      importButton.addEventListener("click", () => {
+        fileImport.click();
+      });
+
+      fileImport.addEventListener("change", () => {
+        const file = fileImport.files && fileImport.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.addEventListener("load", () => {
+          replaceMarkdown(String(reader.result || ""));
+          fileImport.value = "";
+        });
+        reader.addEventListener("error", () => {
+          fileImport.value = "";
+          alert("无法读取这个文件");
+        });
+        reader.readAsText(file);
+      });
+
+      window.addEventListener("hashchange", syncFromHash);
+      setEditorOpen(false);
+      syncFromHash();
+    })();
+  </script>
+</body>
+</html>
