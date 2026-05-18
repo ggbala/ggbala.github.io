@@ -760,7 +760,7 @@
               Remote Static Practice
             </span>
             <h2 id="startTitle">选择远程词表，开始雅思句子填空。</h2>
-            <p class="intro-copy">页面会从部署后的静态目录读取 <code>question-bank/manifest.json</code>，再按清单加载 `.txt` 词表。每个 topic 对应一个文件，中文提示保留，英文句子只挖空题库指定的核心单词并实时校验。</p>
+            <p class="intro-copy">页面会从部署后的静态目录读取 <code>question-bank/manifest.json</code>，进入练习时再按需加载 `.txt` 词表。每个 topic 对应一个文件，中文提示保留，英文句子只挖空题库指定的核心单词并实时校验。</p>
             <div class="hero-actions">
               <button class="btn btn-primary" type="button" id="reloadBankBtn">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -783,7 +783,7 @@
             <h2 class="section-title" id="formatTitle">题库格式</h2>
             <p class="muted">题库放在 <code>question-bank/</code>，并由 <code>manifest.json</code> 公开文件列表。</p>
             <ul class="format-list">
-              <li><span class="step-dot">1</span><span>页面先读取 <code>./question-bank/manifest.json</code>。</span></li>
+              <li><span class="step-dot">1</span><span>点击获取后读取 <code>./question-bank/manifest.json</code>。</span></li>
               <li><span class="step-dot">2</span><span>每行用 Tab 分成三列：中文、英文完整句子、最多 3 个填空词。</span></li>
               <li><span class="step-dot">3</span><span>填空词用英文逗号分隔，必须出现在英文句子中。</span></li>
             </ul>
@@ -815,7 +815,7 @@
             <div class="topic-toolbar">
               <div>
                 <h2 class="section-title" id="topicsTitle">选择练习 topic</h2>
-                <p class="muted" id="loadedSource">正在获取远程词表...</p>
+                <p class="muted" id="loadedSource">点击获取词表后显示可练习 topic。</p>
               </div>
               <fieldset class="mode-group" aria-label="练习顺序">
                 <label class="mode-option">
@@ -898,11 +898,14 @@
   <script>
     const MANIFEST_URL = "./question-bank/manifest.json";
     const RANDOM_LIMIT = 50;
+    const RANDOM_TOPIC_COUNT = 4;
     const STOP_WORDS = new Set(["a", "an", "the", "in", "on", "at", "to", "of", "for", "with", "by", "as", "and", "or", "but", "from", "into", "over", "than"]);
 
     const state = {
+      entries: [],
       topics: [],
       warnings: [],
+      topicCache: new Map(),
       currentQuestions: [],
       currentIndex: 0,
       currentTopicLabel: "",
@@ -950,10 +953,10 @@
       }
     });
 
-    loadRemoteBank();
+    renderInitialState();
 
     async function loadRemoteBank() {
-      setBank([], [], "正在获取远程词表...");
+      setBank([], [], "正在获取远程词表清单...");
 
       try {
         const manifestResponse = await fetch(`${MANIFEST_URL}?v=${Date.now()}`, { cache: "no-store" });
@@ -968,44 +971,33 @@
           return;
         }
 
-        const topics = [];
-        const warnings = [];
-
-        for (const entry of entries) {
-          try {
-            const response = await fetch(`${entry.url}?v=${Date.now()}`, { cache: "no-store" });
-            if (!response.ok) {
-              warnings.push(`${entry.path}: 请求失败，HTTP ${response.status}。`);
-              continue;
-            }
-
-            const text = await response.text();
-            const parsed = parseTopicFile(text, entry.path);
-            warnings.push(...parsed.warnings);
-            if (parsed.questions.length) {
-              topics.push({ name: entry.name, questions: parsed.questions });
-            } else {
-              warnings.push(`${entry.path}: 没有可用题目。`);
-            }
-          } catch (error) {
-            warnings.push(`${entry.path}: ${error.message}`);
-          }
-        }
-
-        setBank(topics, warnings, `已从 ${MANIFEST_URL} 加载 ${topics.length} 个词表。`);
+        state.topicCache.clear();
+        setBank(entries, [], `已读取 ${entries.length} 个词表清单，选择 topic 后按需加载。`);
       } catch (error) {
         setBank([], [`${MANIFEST_URL}: ${error.message}`], "远程词表加载失败。");
       }
     }
 
-    function setBank(topics, warnings, sourceText) {
-      state.topics = topics;
+    function setBank(entries, warnings, sourceText) {
+      state.entries = entries;
+      state.topics = [];
       state.warnings = warnings;
       document.getElementById("loadedSource").textContent = sourceText;
       renderTopicSummary();
       renderAlerts();
       renderTopics();
-      showView(topics.length || warnings.length ? "topics" : "start");
+      showView(entries.length || warnings.length ? "topics" : "start");
+    }
+
+    function renderInitialState() {
+      state.entries = [];
+      state.topics = [];
+      state.warnings = [];
+      document.getElementById("loadedSource").textContent = "点击获取词表后显示可练习 topic。";
+      renderTopicSummary();
+      renderAlerts();
+      renderTopics();
+      showView("start");
     }
 
     function normalizeManifest(manifest) {
@@ -1083,9 +1075,9 @@
     }
 
     function renderTopicSummary() {
-      const totalQuestions = state.topics.reduce((sum, topic) => sum + topic.questions.length, 0);
-      document.getElementById("topicStat").textContent = state.topics.length;
-      document.getElementById("questionStat").textContent = totalQuestions;
+      const loadedQuestions = state.topics.reduce((sum, topic) => sum + topic.questions.length, 0);
+      document.getElementById("topicStat").textContent = state.entries.length;
+      document.getElementById("questionStat").textContent = loadedQuestions || "-";
       document.getElementById("warningStat").textContent = state.warnings.length;
     }
 
@@ -1110,31 +1102,28 @@
 
     function renderTopics() {
       topicGrid.innerHTML = "";
-      if (!state.topics.length) {
+      if (!state.entries.length) {
         const empty = document.createElement("div");
         empty.className = "alert";
-        empty.textContent = "暂无可练习题目。请检查 question-bank/manifest.json 是否存在，并确认清单中的 .txt 文件可以访问。";
+        empty.textContent = "暂无可练习 topic。请先获取词表，或检查 question-bank/manifest.json 是否存在。";
         topicGrid.appendChild(empty);
         return;
       }
 
       const allButton = makeTopicButton({
         name: `随机 ${RANDOM_LIMIT} 题`,
-        description: "从全部词表混合抽题",
-        count: Math.min(RANDOM_LIMIT, state.topics.reduce((sum, topic) => sum + topic.questions.length, 0)),
-        onClick: () => {
-          const allQuestions = state.topics.flatMap((topic) => topic.questions.map((q) => ({ ...q, topic: topic.name })));
-          startPractice(`随机 ${Math.min(RANDOM_LIMIT, allQuestions.length)} 题`, shuffle([...allQuestions]).slice(0, RANDOM_LIMIT), { keepOrder: true });
-        }
+        description: `每次随机加载 ${Math.min(RANDOM_TOPIC_COUNT, state.entries.length)} 个词库后抽题`,
+        count: RANDOM_LIMIT,
+        onClick: startRandomPractice
       });
       topicGrid.appendChild(allButton);
 
-      state.topics.forEach((topic) => {
+      state.entries.forEach((entry) => {
         topicGrid.appendChild(makeTopicButton({
-          name: topic.name,
-          description: "按当前 topic 练习",
-          count: topic.questions.length,
-          onClick: () => startPractice(topic.name, topic.questions.map((q) => ({ ...q, topic: topic.name })))
+          name: entry.name,
+          description: "点击后加载当前 topic",
+          count: null,
+          onClick: () => startTopicPractice(entry)
         }));
       });
     }
@@ -1146,9 +1135,84 @@
       button.innerHTML = `<strong></strong><span></span><span class="topic-count"></span>`;
       button.querySelector("strong").textContent = name;
       button.querySelector("span").textContent = description;
-      button.querySelector(".topic-count").textContent = `${count} 题`;
+      button.querySelector(".topic-count").textContent = count === null ? "按需加载" : `${count} 题`;
       button.addEventListener("click", onClick);
       return button;
+    }
+
+    async function startTopicPractice(entry) {
+      try {
+        setLoadingStatus(`正在加载 ${entry.name}...`);
+        const topic = await loadTopic(entry);
+        startPractice(topic.name, topic.questions.map((q) => ({ ...q, topic: topic.name })));
+        renderTopicSummary();
+        renderAlerts();
+        renderTopics();
+      } catch (error) {
+        addWarning(`${entry.path}: ${error.message}`);
+        setLoadingStatus(`${entry.name} 加载失败。`);
+      }
+    }
+
+    async function startRandomPractice() {
+      const pickedEntries = shuffle([...state.entries]).slice(0, RANDOM_TOPIC_COUNT);
+      try {
+        setLoadingStatus(`正在随机加载 ${pickedEntries.length} 个词库...`);
+        const loadedTopics = await Promise.all(pickedEntries.map((entry) => loadTopic(entry, { refresh: true })));
+        const allQuestions = loadedTopics.flatMap((topic) => topic.questions.map((q) => ({ ...q, topic: topic.name })));
+        const selected = shuffle(allQuestions).slice(0, RANDOM_LIMIT);
+        startPractice(`随机 ${selected.length} 题`, selected, { keepOrder: true });
+        renderTopicSummary();
+        renderAlerts();
+        renderTopics();
+      } catch (error) {
+        addWarning(`随机练习加载失败：${error.message}`);
+        setLoadingStatus("随机练习加载失败。");
+      }
+    }
+
+    async function loadTopic(entry, options = {}) {
+      if (!options.refresh && state.topicCache.has(entry.path)) {
+        return state.topicCache.get(entry.path);
+      }
+
+      const response = await fetch(`${entry.url}?v=${Date.now()}`, { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error(`请求失败，HTTP ${response.status}。`);
+      }
+
+      const text = await response.text();
+      const parsed = parseTopicFile(text, entry.path);
+      if (!parsed.questions.length) {
+        throw new Error("没有可用题目。");
+      }
+
+      parsed.warnings.forEach(addWarning);
+      const topic = { name: entry.name, questions: parsed.questions };
+      state.topicCache.set(entry.path, topic);
+      upsertTopic(topic);
+      return topic;
+    }
+
+    function upsertTopic(topic) {
+      const index = state.topics.findIndex((item) => item.name === topic.name);
+      if (index >= 0) {
+        state.topics[index] = topic;
+      } else {
+        state.topics.push(topic);
+      }
+    }
+
+    function addWarning(message) {
+      if (!state.warnings.includes(message)) {
+        state.warnings.push(message);
+      }
+      renderAlerts();
+      renderTopicSummary();
+    }
+
+    function setLoadingStatus(message) {
+      document.getElementById("loadedSource").textContent = message;
     }
 
     function startPractice(label, questions, options = {}) {

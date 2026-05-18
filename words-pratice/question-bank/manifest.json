@@ -4,6 +4,10 @@
     { "name": "Technology", "file": "Technology.txt" },
     { "name": "Environment", "file": "Environment.txt" },
     { "name": "Health", "file": "Health.txt" },
-    { "name": "Strength Training", "file": "Strength-Training.txt" }
+    { "name": "Strength Training", "file": "Strength-Training.txt" },
+    { "name": "Metabolic Health", "file": "Metabolic-Health.txt" },
+    { "name": "Healthy Living", "file": "Healthy-Living.txt" },
+    { "name": "Muscle Building", "file": "Muscle-Building.txt" },
+    { "name": "Wealth Inequality", "file": "Wealth-Inequality.txt" }
   ]
 }
