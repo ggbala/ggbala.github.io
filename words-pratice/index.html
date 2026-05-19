@@ -561,8 +561,53 @@
       align-items: start;
     }
 
+    .practice-stats {
+      margin-top: 18px;
+      border-top: 1px solid #e0e5ee;
+      padding-top: 18px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .stat-tile {
+      min-width: 0;
+      border: 1px solid #dbe3ef;
+      border-radius: 8px;
+      background: #f8fafc;
+      padding: 12px;
+    }
+
+    .stat-label {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 900;
+      line-height: 1.2;
+    }
+
+    .stat-value {
+      display: block;
+      margin-top: 7px;
+      color: #0c4a6e;
+      font-size: 1.2rem;
+      font-weight: 950;
+      line-height: 1.1;
+      word-break: break-word;
+    }
+
+    .stat-note {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.5;
+    }
+
     .completion {
-      padding: clamp(24px, 5vw, 44px);
+      padding: 0;
       text-align: center;
     }
 
@@ -588,6 +633,86 @@
       margin-top: 24px;
     }
 
+    .share-scroll {
+      position: relative;
+      overflow: hidden;
+      border-radius: 8px;
+      background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 54%, #f8fafc 100%);
+    }
+
+    .share-page {
+      min-height: min(78vh, 780px);
+      padding: clamp(22px, 5vw, 44px);
+    }
+
+    .share-poster-page {
+      display: grid;
+      place-items: center;
+    }
+
+    .poster-card {
+      width: min(100%, 560px);
+      border: 1px solid #dbe3ef;
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 30px 80px rgba(12, 74, 110, 0.14);
+      padding: clamp(26px, 6vw, 52px);
+      text-align: left;
+    }
+
+    .poster-kicker {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid #bae6fd;
+      border-radius: 999px;
+      background: #f0f9ff;
+      padding: 7px 12px;
+      color: #0369a1;
+      font-size: 0.82rem;
+      font-weight: 950;
+    }
+
+    .poster-title {
+      margin: 18px 0 0;
+      color: #082f49;
+      font-size: clamp(2rem, 7vw, 4.8rem);
+      font-weight: 950;
+      line-height: 0.98;
+    }
+
+    .poster-subtitle {
+      margin: 16px 0 0;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.7;
+    }
+
+    .poster-stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 30px;
+    }
+
+    .poster-stat {
+      border-top: 1px solid #dbe3ef;
+      padding-top: 14px;
+    }
+
+    .poster-stat strong {
+      display: block;
+      color: #0c4a6e;
+      font-size: clamp(1.5rem, 5vw, 2.5rem);
+      line-height: 1.05;
+    }
+
+    .poster-stat span {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
     .hidden {
       display: none !important;
     }
@@ -610,6 +735,7 @@
       .practice-side {
         position: static;
       }
+
     }
 
     @media (max-width: 680px) {
@@ -635,6 +761,19 @@
 
       .word-blank {
         width: min(42vw, 150px);
+      }
+
+      .stats-grid,
+      .poster-stats {
+        grid-template-columns: 1fr;
+      }
+
+      .share-scroll {
+        overflow: hidden;
+      }
+
+      .share-page {
+        min-height: 72vh;
       }
     }
 
@@ -798,14 +937,61 @@
               <li><span class="step-dot">C</span><span>全部正确后可按 Enter 或 ArrowRight 下一题。</span></li>
               <li><span class="step-dot">D</span><span>提示按钮会自动填入当前第一个未完成的空。</span></li>
             </ul>
+            <div class="practice-stats" aria-labelledby="liveStatsTitle">
+              <h2 class="section-title" id="liveStatsTitle">本轮统计</h2>
+              <div class="stats-grid">
+                <div class="stat-tile">
+                  <p class="stat-label">学习时间</p>
+                  <strong class="stat-value" id="liveStudyTime">0秒</strong>
+                </div>
+                <div class="stat-tile">
+                  <p class="stat-label">提示次数</p>
+                  <strong class="stat-value" id="liveHintCount">0</strong>
+                </div>
+                <div class="stat-tile">
+                  <p class="stat-label">提示占比</p>
+                  <strong class="stat-value" id="liveHintPercent">0%</strong>
+                </div>
+                <div class="stat-tile">
+                  <p class="stat-label">本轮词数</p>
+                  <strong class="stat-value" id="liveWordCount">0</strong>
+                </div>
+              </div>
+              <p class="stat-note" id="liveStatsNote">完成后会生成可分享的两页统计卡。</p>
+            </div>
           </aside>
         </div>
       </section>
 
       <section class="view" id="doneView" aria-labelledby="doneTitle">
         <div class="panel completion">
-          <h2 id="doneTitle">本轮练习完成</h2>
-          <p id="doneSummary">你已完成当前 topic 的所有题目。</p>
+          <div class="share-scroll" id="shareScroll">
+            <section class="share-page share-poster-page" aria-labelledby="doneTitle">
+              <div class="poster-card">
+                <span class="poster-kicker">IELTS Word Practice</span>
+                <h2 class="poster-title" id="doneTitle">本轮练习完成</h2>
+                <p class="poster-subtitle" id="doneSummary">你已完成当前 topic 的所有题目。</p>
+                <div class="poster-stats">
+                  <div class="poster-stat">
+                    <strong id="shareStudyTime">0秒</strong>
+                    <span>学习时间</span>
+                  </div>
+                  <div class="poster-stat">
+                    <strong id="shareWordCount">0</strong>
+                    <span>已完成词数</span>
+                  </div>
+                  <div class="poster-stat">
+                    <strong id="shareHintCount">0</strong>
+                    <span>使用提示词数</span>
+                  </div>
+                  <div class="poster-stat">
+                    <strong id="shareHintPercent">0%</strong>
+                    <span>提示占比</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
           <div class="completion-actions">
             <button class="btn btn-primary" type="button" id="doneRestartBtn">再练一遍</button>
             <button class="btn btn-ghost" type="button" id="doneTopicsBtn">返回词表</button>
@@ -829,7 +1015,13 @@
       currentQuestions: [],
       currentIndex: 0,
       currentTopicLabel: "",
-      completedCurrent: false
+      completedCurrent: false,
+      session: {
+        startedAt: 0,
+        finishedAt: 0,
+        hintedWordCount: 0,
+        timerId: 0
+      }
     };
 
     const views = {
@@ -852,6 +1044,11 @@
     const loadedSource = document.getElementById("loadedSource");
     const startTitle = document.getElementById("startTitle");
     const startCopy = document.getElementById("startCopy");
+    const liveStudyTime = document.getElementById("liveStudyTime");
+    const liveHintCount = document.getElementById("liveHintCount");
+    const liveHintPercent = document.getElementById("liveHintPercent");
+    const liveWordCount = document.getElementById("liveWordCount");
+    const liveStatsNote = document.getElementById("liveStatsNote");
 
     reloadBankBtn.addEventListener("click", loadRemoteBank);
     refreshTopicsBtn.addEventListener("click", loadRemoteBank);
@@ -1162,6 +1359,7 @@
       state.currentQuestions = options.keepOrder ? [...questions] : [...questions];
       state.currentIndex = 0;
       state.currentTopicLabel = label;
+      resetSessionStats();
       renderQuestion();
       showView("practice");
     }
@@ -1172,6 +1370,7 @@
         return;
       }
       state.currentIndex = 0;
+      resetSessionStats();
       renderQuestion();
       showView("practice");
     }
@@ -1230,6 +1429,7 @@
         input.setAttribute("aria-label", `第 ${blankCount} 个空，答案 ${token.value.length} 个字母`);
         input.dataset.answer = normalized;
         input.dataset.hint = token.value.slice(0, 1);
+        input.dataset.wasCorrect = "false";
         input.value = input.dataset.hint;
         input.style.width = `${Math.min(Math.max(token.value.length + 3, 7), 16)}ch`;
         input.addEventListener("input", () => validateInput(input));
@@ -1317,16 +1517,21 @@
 
       if (value === input.dataset.answer) {
         input.classList.add("correct");
+        input.dataset.wasCorrect = "true";
         const next = nextBlank(input);
         if (next && !next.classList.contains("correct")) next.focus();
       } else if (value === input.dataset.hint.toLowerCase()) {
+        input.dataset.wasCorrect = "false";
         updateQuestionCompletion();
+        renderLiveStats();
         return;
       } else {
+        input.dataset.wasCorrect = "false";
         input.classList.add("incorrect");
       }
 
       updateQuestionCompletion();
+      renderLiveStats();
     }
 
     function revealHint() {
@@ -1334,6 +1539,7 @@
       if (!target) return;
 
       target.value = target.dataset.answer;
+      recordHintUse(target);
       validateInput(target);
 
       if (!state.completedCurrent) {
@@ -1398,9 +1604,138 @@
     }
 
     function showCompletion() {
+      finishSessionStats();
       document.getElementById("doneSummary").textContent = `你已完成 ${state.currentTopicLabel} 的 ${state.currentQuestions.length} 道题。`;
+      renderSharePage();
       document.getElementById("progressFill").style.width = "100%";
       showView("done");
+    }
+
+    function resetSessionStats() {
+      if (state.session.timerId) {
+        clearInterval(state.session.timerId);
+      }
+      state.session.startedAt = Date.now();
+      state.session.finishedAt = 0;
+      state.session.hintedWordCount = 0;
+      state.session.timerId = window.setInterval(renderLiveStats, 1000);
+      renderLiveStats();
+    }
+
+    function finishSessionStats() {
+      if (!state.session.finishedAt) {
+        state.session.finishedAt = Date.now();
+      }
+      if (state.session.timerId) {
+        clearInterval(state.session.timerId);
+        state.session.timerId = 0;
+      }
+      renderLiveStats();
+    }
+
+    function recordHintUse(input) {
+      if (input.dataset.hinted === "true") return;
+      input.dataset.hinted = "true";
+      state.session.hintedWordCount += 1;
+      renderLiveStats();
+    }
+
+    function getSessionStats() {
+      const totalQuestions = state.currentQuestions.length;
+      const completedQuestions = Math.min(state.currentIndex + (state.completedCurrent ? 1 : 0), totalQuestions);
+      const completedWordCount = getCompletedWordCount();
+      const totalWordCount = getPracticeWords().length;
+      const hintPercent = completedWordCount ? Math.round((state.session.hintedWordCount / completedWordCount) * 100) : 0;
+      const elapsedMs = state.session.startedAt
+        ? (state.session.finishedAt || Date.now()) - state.session.startedAt
+        : 0;
+
+      return {
+        totalQuestions,
+        completedQuestions,
+        completedWordCount,
+        totalWordCount,
+        hintedWordCount: state.session.hintedWordCount,
+        hintPercent,
+        elapsedMs
+      };
+    }
+
+    function renderLiveStats() {
+      const stats = getSessionStats();
+      liveStudyTime.textContent = formatDuration(stats.elapsedMs);
+      liveHintCount.textContent = String(stats.hintedWordCount);
+      liveHintPercent.textContent = `${stats.hintPercent}%`;
+      liveWordCount.textContent = String(stats.completedWordCount);
+      liveStatsNote.textContent = `已完成 ${stats.completedQuestions} / ${stats.totalQuestions} 题，${stats.completedWordCount} / ${stats.totalWordCount} 个词。`;
+    }
+
+    function renderSharePage() {
+      const stats = getSessionStats();
+      const values = {
+        shareStudyTime: formatDuration(stats.elapsedMs),
+        shareWordCount: String(stats.completedWordCount),
+        shareHintCount: String(stats.hintedWordCount),
+        shareHintPercent: `${stats.hintPercent}%`
+      };
+
+      Object.entries(values).forEach(([id, value]) => {
+        document.getElementById(id).textContent = value;
+      });
+    }
+
+    function getPracticeWords() {
+      const words = [];
+      state.currentQuestions.forEach((question, questionIndex) => {
+        const targets = question.targets && question.targets.length ? question.targets : autoPickTargetWords(question.sentence);
+        targets.forEach((target) => {
+          const word = normalizeAnswer(target);
+          if (!word) return;
+          words.push({ word, meaning: question.meaning, questionIndex });
+        });
+      });
+      return words;
+    }
+
+    function getCompletedWordCount() {
+      let completed = 0;
+      state.currentQuestions.forEach((question, index) => {
+        if (index < state.currentIndex) {
+          completed += getQuestionWordCount(question);
+        }
+      });
+
+      if (state.completedCurrent) {
+        completed += getVisibleCompletedWordCount();
+      } else if (views.practice.classList.contains("active")) {
+        completed += getVisibleCompletedWordCount();
+      }
+
+      return completed;
+    }
+
+    function getQuestionWordCount(question) {
+      const targets = question.targets && question.targets.length ? question.targets : autoPickTargetWords(question.sentence);
+      return targets.filter((target) => normalizeAnswer(target)).length;
+    }
+
+    function getVisibleCompletedWordCount() {
+      return [...sentenceArea.querySelectorAll("input.word-blank")]
+        .filter((input) => input.dataset.wasCorrect === "true")
+        .length;
+    }
+
+    function formatDuration(ms) {
+      const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      if (minutes >= 60) {
+        const hours = Math.floor(minutes / 60);
+        const restMinutes = minutes % 60;
+        return restMinutes ? `${hours}小时${restMinutes}分` : `${hours}小时`;
+      }
+      if (minutes > 0) return `${minutes}分${seconds}秒`;
+      return `${seconds}秒`;
     }
 
     function showView(name) {
@@ -1408,6 +1743,10 @@
         element.classList.toggle("active", key === name);
       });
       const inPracticeFlow = name === "practice" || name === "done";
+      if (!inPracticeFlow && state.session.timerId) {
+        clearInterval(state.session.timerId);
+        state.session.timerId = 0;
+      }
       backToTopicsBtn.classList.toggle("hidden", !inPracticeFlow);
       restartBtn.classList.toggle("hidden", !inPracticeFlow);
       window.scrollTo({ top: 0, behavior: "smooth" });
