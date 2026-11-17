@@ -1,0 +1,1605 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>枯枝大圣 3D</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #14171c;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+    #canvas-container.dragging { cursor: grabbing; }
+
+    #loading-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: #141311;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      transition: opacity 0.55s ease, visibility 0.55s ease;
+    }
+    #loading-screen.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .progress-wrap {
+      width: min(260px, 68vw);
+      height: 4px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #b87333, #f3c178);
+      transition: width 0.18s ease;
+    }
+
+    #crosshair {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: rgba(255, 248, 232, 0.65);
+      box-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    #fp-hint {
+      position: fixed;
+      bottom: 14px;
+      left: 16px;
+      z-index: 6;
+      font-size: 11px;
+      color: rgba(245, 238, 224, 0.55);
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+      pointer-events: none;
+      letter-spacing: 0.4px;
+    }
+
+    #touch-controls {
+      position: fixed;
+      bottom: 24px;
+      left: 20px;
+      z-index: 12;
+      display: none;
+      pointer-events: auto;
+    }
+    #touch-controls.visible { display: block; }
+    #joystick-base {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: rgba(25, 23, 20, 0.45);
+      border: 1.5px solid rgba(245, 223, 184, 0.25);
+      position: relative;
+      touch-action: none;
+    }
+    #joystick-knob {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(243, 193, 120, 0.8);
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+  </style>
+</head>
+<body>
+  <div id="loading-screen">
+    <div class="progress-wrap"><div class="progress-bar" id="progress-bar"></div></div>
+  </div>
+
+  <div id="canvas-container"></div>
+  <div id="crosshair"></div>
+  <div id="fp-hint">WASD 移动 · Shift 加速 · Space 跳跃 · 拖拽或点击锁定视角 · 滚轮调焦</div>
+
+  <div id="touch-controls">
+    <div id="joystick-base"><div id="joystick-knob"></div></div>
+  </div>
+
+  <script>
+    (function loadThree() {
+      const cdns = [
+        "https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js",
+        "https://unpkg.com/three@0.147.0/build/three.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/three.js/r147/three.min.js"
+      ];
+      let idx = 0;
+      function tryLoad() {
+        if (idx >= cdns.length) return;
+        const s = document.createElement("script");
+        s.src = cdns[idx++];
+        s.onload = () => {
+          if (window.THREE) startScene();
+          else tryLoad();
+        };
+        s.onerror = tryLoad;
+        document.head.appendChild(s);
+      }
+      tryLoad();
+    })();
+  </script>
+
+  <script>
+    function startScene() {
+      const progressBar = document.getElementById("progress-bar");
+      const setProgress = (pct) => { progressBar.style.width = pct + "%"; };
+      setProgress(12);
+
+      function mulberry32(a) {
+        return function () {
+          let t = (a += 0x6d2b79f5);
+          t = Math.imul(t ^ (t >>> 15), t | 1);
+          t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+      const rand = mulberry32(20261116);
+      const randRange = (min, max) => min + (max - min) * rand();
+
+      const container = document.getElementById("canvas-container");
+      const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.08;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      container.appendChild(renderer.domElement);
+
+      const scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2(0xc4d5e4, 0.0064);
+
+      const camera = new THREE.PerspectiveCamera(56, window.innerWidth / window.innerHeight, 0.08, 340);
+
+      // =========================================================================
+      // 1. PROCEDURAL TEXTURES (London Plane Bark, Soil, Road)
+      // =========================================================================
+      function createBarkTextures() {
+        const size = 512;
+        const cAlb = document.createElement("canvas");
+        const cBmp = document.createElement("canvas");
+        cAlb.width = cBmp.width = size;
+        cAlb.height = cBmp.height = size;
+        const aCtx = cAlb.getContext("2d");
+        const bCtx = cBmp.getContext("2d");
+
+        aCtx.fillStyle = "#7d6854";
+        aCtx.fillRect(0, 0, size, size);
+        bCtx.fillStyle = "#808080";
+        bCtx.fillRect(0, 0, size, size);
+
+        for (let i = 0; i < 2100; i++) {
+          const x = rand() * size;
+          const y = rand() * size;
+          const w = randRange(1.5, 5.5);
+          const h = randRange(16, 92);
+          const v = rand();
+          if (v < 0.36) {
+            aCtx.fillStyle = `rgba(48, 37, 29, ${randRange(0.28, 0.62)})`;
+            bCtx.fillStyle = `rgba(28, 28, 28, ${randRange(0.22, 0.5)})`;
+          } else if (v < 0.72) {
+            aCtx.fillStyle = `rgba(154, 134, 108, ${randRange(0.22, 0.45)})`;
+            bCtx.fillStyle = `rgba(218, 218, 218, ${randRange(0.18, 0.44)})`;
+          } else {
+            aCtx.fillStyle = `rgba(182, 168, 144, ${randRange(0.16, 0.36)})`;
+            bCtx.fillStyle = `rgba(185, 185, 185, ${randRange(0.16, 0.32)})`;
+          }
+          aCtx.fillRect(x, y, w, h);
+          bCtx.fillRect(x, y, w, h);
+        }
+
+        for (let i = 0; i < 4200; i++) {
+          const x = rand() * size;
+          const y = rand() * size;
+          const dark = rand() > 0.5;
+          aCtx.fillStyle = dark ? "rgba(34,26,20,0.25)" : "rgba(200,185,160,0.2)";
+          aCtx.fillRect(x, y, randRange(1, 3), randRange(2, 7));
+          bCtx.fillStyle = dark ? "rgba(45,45,45,0.25)" : "rgba(235,235,235,0.25)";
+          bCtx.fillRect(x, y, randRange(1, 2.5), randRange(2, 6));
+        }
+
+        const map = new THREE.CanvasTexture(cAlb);
+        map.wrapS = map.wrapT = THREE.RepeatWrapping;
+        map.encoding = THREE.sRGBEncoding;
+        map.anisotropy = 8;
+
+        const bumpMap = new THREE.CanvasTexture(cBmp);
+        bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
+        bumpMap.anisotropy = 8;
+        return { map, bumpMap };
+      }
+
+      function createGroundTexture() {
+        const size = 1024;
+        const c = document.createElement("canvas");
+        c.width = c.height = size;
+        const ctx = c.getContext("2d");
+        ctx.fillStyle = "#9d835c";
+        ctx.fillRect(0, 0, size, size);
+        for (let i = 0; i < 8000; i++) {
+          const pick = rand();
+          if (pick < 0.4) ctx.fillStyle = `rgba(128, 102, 69, ${randRange(0.06, 0.16)})`;
+          else if (pick < 0.8) ctx.fillStyle = `rgba(176, 151, 112, ${randRange(0.06, 0.15)})`;
+          else ctx.fillStyle = `rgba(88, 72, 50, ${randRange(0.05, 0.14)})`;
+          ctx.beginPath();
+          ctx.arc(rand() * size, rand() * size, randRange(1, 14), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        for (let i = 0; i < 2500; i++) {
+          ctx.fillStyle = rand() > 0.45 ? "rgba(70,58,42,0.35)" : "rgba(202,184,152,0.35)";
+          ctx.fillRect(rand() * size, rand() * size, randRange(1, 4), randRange(1, 3));
+        }
+        const tex = new THREE.CanvasTexture(c);
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        tex.repeat.set(16, 16);
+        tex.encoding = THREE.sRGBEncoding;
+        tex.anisotropy = 8;
+        return tex;
+      }
+
+      function createRoadTexture() {
+        const size = 512;
+        const c = document.createElement("canvas");
+        c.width = c.height = size;
+        const ctx = c.getContext("2d");
+        ctx.fillStyle = "#5c5b59";
+        ctx.fillRect(0, 0, size, size);
+        for (let i = 0; i < 5500; i++) {
+          const v = Math.floor(randRange(65, 118));
+          ctx.fillStyle = `rgba(${v},${v},${v - 2},0.3)`;
+          ctx.fillRect(rand() * size, rand() * size, randRange(1, 3), randRange(1, 3));
+        }
+        const gradTop = ctx.createLinearGradient(0, 0, 0, 75);
+        gradTop.addColorStop(0, "rgba(155, 130, 92, 0.85)");
+        gradTop.addColorStop(1, "rgba(155, 130, 92, 0)");
+        ctx.fillStyle = gradTop;
+        ctx.fillRect(0, 0, size, 75);
+        const gradBot = ctx.createLinearGradient(0, size - 75, 0, size);
+        gradBot.addColorStop(0, "rgba(155, 130, 92, 0)");
+        gradBot.addColorStop(1, "rgba(155, 130, 92, 0.85)");
+        ctx.fillStyle = gradBot;
+        ctx.fillRect(0, size - 75, size, 75);
+        ctx.fillStyle = "rgba(235, 232, 224, 0.55)";
+        ctx.fillRect(0, 48, size, 7);
+        ctx.fillRect(0, size - 55, size, 7);
+
+        const tex = new THREE.CanvasTexture(c);
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.ClampToEdgeWrapping;
+        tex.repeat.set(18, 1);
+        tex.encoding = THREE.sRGBEncoding;
+        tex.anisotropy = 8;
+        return tex;
+      }
+
+      const barkTex = createBarkTextures();
+      const groundTex = createGroundTexture();
+      const roadTex = createRoadTexture();
+
+      // =========================================================================
+      // 2. SKY DOME & NATURAL SUNLIGHT + SOFT SHADOWS
+      // =========================================================================
+      const sunDir = new THREE.Vector3(0.46, 0.56, 0.52).normalize();
+      const skyGeo = new THREE.SphereGeometry(240, 48, 32);
+      const skyMat = new THREE.ShaderMaterial({
+        side: THREE.BackSide,
+        depthWrite: false,
+        uniforms: {
+          topColor: { value: new THREE.Color(0x276cb5) },
+          horizonColor: { value: new THREE.Color(0xc2d8ea) },
+          sunColor: { value: new THREE.Color(0xfff1d4) },
+          sunDir: { value: sunDir }
+        },
+        vertexShader: `
+          varying vec3 vWorldPos;
+          void main() {
+            vec4 wp = modelMatrix * vec4(position, 1.0);
+            vWorldPos = wp.xyz;
+            gl_Position = projectionMatrix * viewMatrix * wp;
+          }
+        `,
+        fragmentShader: `
+          uniform vec3 topColor;
+          uniform vec3 horizonColor;
+          uniform vec3 sunColor;
+          uniform vec3 sunDir;
+          varying vec3 vWorldPos;
+          void main() {
+            vec3 dir = normalize(vWorldPos);
+            float h = clamp(dir.y, 0.0, 1.0);
+            vec3 col = mix(horizonColor, topColor, pow(h, 0.55));
+            float sunAmt = max(dot(dir, normalize(sunDir)), 0.0);
+            col += sunColor * pow(sunAmt, 14.0) * 0.45;
+            col += sunColor * smoothstep(0.9975, 0.9996, sunAmt) * 2.3;
+            gl_FragColor = vec4(col, 1.0);
+          }
+        `
+      });
+      scene.add(new THREE.Mesh(skyGeo, skyMat));
+
+      const hemiLight = new THREE.HemisphereLight(0xaad0f5, 0x846949, 0.74);
+      scene.add(hemiLight);
+
+      const sunLight = new THREE.DirectionalLight(0xfff2dc, 2.4);
+      sunLight.position.copy(sunDir).multiplyScalar(36);
+      sunLight.castShadow = true;
+      sunLight.shadow.mapSize.set(2048, 2048);
+      sunLight.shadow.camera.left = -18;
+      sunLight.shadow.camera.right = 18;
+      sunLight.shadow.camera.top = 18;
+      sunLight.shadow.camera.bottom = -18;
+      sunLight.shadow.camera.near = 1.0;
+      sunLight.shadow.camera.far = 80.0;
+      sunLight.shadow.bias = -0.00045;
+      sunLight.shadow.normalBias = 0.025;
+      sunLight.target.position.set(0, 3.0, -1.5);
+      scene.add(sunLight);
+      scene.add(sunLight.target);
+
+      const fillLight = new THREE.DirectionalLight(0x9ec7ee, 0.48);
+      fillLight.position.set(-14, 10, -18);
+      scene.add(fillLight);
+
+      // =========================================================================
+      // 3. CROOKED BRANCH ARCHETYPES
+      // =========================================================================
+      setProgress(28);
+
+      function mergeGeometries(geos) {
+        let totalVerts = 0, totalIdx = 0;
+        for (const g of geos) {
+          totalVerts += g.attributes.position.count;
+          totalIdx += g.index ? g.index.count : g.attributes.position.count;
+        }
+        const pos = new Float32Array(totalVerts * 3);
+        const norm = new Float32Array(totalVerts * 3);
+        const uv = new Float32Array(totalVerts * 2);
+        const idx = new Uint32Array(totalIdx);
+        let vOff = 0, iOff = 0;
+        for (const g of geos) {
+          pos.set(g.attributes.position.array, vOff * 3);
+          norm.set(g.attributes.normal.array, vOff * 3);
+          uv.set(g.attributes.uv.array, vOff * 2);
+          if (g.index) {
+            const gi = g.index.array;
+            for (let k = 0; k < gi.length; k++) idx[iOff + k] = gi[k] + vOff;
+            iOff += gi.length;
+          } else {
+            for (let k = 0; k < g.attributes.position.count; k++) idx[iOff + k] = k + vOff;
+            iOff += g.attributes.position.count;
+          }
+          vOff += g.attributes.position.count;
+        }
+        const out = new THREE.BufferGeometry();
+        out.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+        out.setAttribute("normal", new THREE.BufferAttribute(norm, 3));
+        out.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+        out.setIndex(new THREE.BufferAttribute(idx, 1));
+        return out;
+      }
+
+      function buildCrookedTube(pts, segs, radialSegs, rStart, rEnd, gnarlSeed) {
+        const curve = new THREE.CatmullRomCurve3(pts);
+        const frames = curve.computeFrenetFrames(segs, false);
+        const r = mulberry32(gnarlSeed);
+        const ringCount = segs + 1;
+        const vertPerRing = radialSegs + 1;
+        const positions = new Float32Array(ringCount * vertPerRing * 3 + 6);
+        const uvs = new Float32Array(ringCount * vertPerRing * 2 + 4);
+        const indices = [];
+        const N = frames.normals, B = frames.binormals;
+        const P = new THREE.Vector3();
+
+        for (let i = 0; i <= segs; i++) {
+          const t = i / segs;
+          curve.getPointAt(t, P);
+          const baseRad = THREE.MathUtils.lerp(rStart, rEnd, t);
+          const knot = 1.0 + 0.14 * Math.sin(t * Math.PI * 3.0 + gnarlSeed) + (r() - 0.5) * 0.14;
+          for (let j = 0; j <= radialSegs; j++) {
+            const u = j / radialSegs;
+            const ang = u * Math.PI * 2;
+            const ridge = 1.0 + 0.12 * Math.sin(ang * 3 + t * 5) + (r() - 0.5) * 0.08;
+            const rad = baseRad * knot * ridge;
+            const idx = i * vertPerRing + j;
+            positions[idx * 3] = P.x + rad * (Math.cos(ang) * N[i].x + Math.sin(ang) * B[i].x);
+            positions[idx * 3 + 1] = P.y + rad * (Math.cos(ang) * N[i].y + Math.sin(ang) * B[i].y);
+            positions[idx * 3 + 2] = P.z + rad * (Math.cos(ang) * N[i].z + Math.sin(ang) * B[i].z);
+            uvs[idx * 2] = u * 1.2;
+            uvs[idx * 2 + 1] = t * 2.2;
+          }
+        }
+
+        const capStartIdx = ringCount * vertPerRing;
+        const capEndIdx = capStartIdx + 1;
+        const p0 = curve.getPointAt(0), p1 = curve.getPointAt(1);
+        positions[capStartIdx * 3] = p0.x; positions[capStartIdx * 3 + 1] = p0.y - 0.015; positions[capStartIdx * 3 + 2] = p0.z;
+        uvs[capStartIdx * 2] = 0.5; uvs[capStartIdx * 2 + 1] = 0;
+        positions[capEndIdx * 3] = p1.x; positions[capEndIdx * 3 + 1] = p1.y + 0.018; positions[capEndIdx * 3 + 2] = p1.z;
+        uvs[capEndIdx * 2] = 0.5; uvs[capEndIdx * 2 + 1] = 1;
+
+        for (let i = 0; i < segs; i++) {
+          for (let j = 0; j < radialSegs; j++) {
+            const a = i * vertPerRing + j, b = (i + 1) * vertPerRing + j;
+            const c = (i + 1) * vertPerRing + (j + 1), d = i * vertPerRing + (j + 1);
+            indices.push(a, b, d, b, c, d);
+          }
+        }
+        for (let j = 0; j < radialSegs; j++) {
+          indices.push(capStartIdx, j + 1, j);
+          const topRing = segs * vertPerRing;
+          indices.push(capEndIdx, topRing + j, topRing + j + 1);
+        }
+
+        const g = new THREE.BufferGeometry();
+        g.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        g.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+        g.setIndex(indices);
+        g.computeVertexNormals();
+        return g;
+      }
+
+      function createBranchArchetype(type) {
+        const parts = [];
+        if (type === 0) {
+          parts.push(buildCrookedTube([
+            new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(0.03, -0.16, 0.018),
+            new THREE.Vector3(-0.025, 0.18, -0.012), new THREE.Vector3(0.01, 0.5, 0)
+          ], 7, 6, 1.05, 0.85, 101));
+          parts.push(buildCrookedTube([
+            new THREE.Vector3(0.02, -0.05, 0.01), new THREE.Vector3(1.5, 0.08, 0.4), new THREE.Vector3(2.3, 0.16, 0.7)
+          ], 3, 5, 0.48, 0.18, 102));
+        } else if (type === 1) {
+          parts.push(buildCrookedTube([
+            new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(0.032, -0.15, 0.028),
+            new THREE.Vector3(0.028, 0.18, 0.022), new THREE.Vector3(0, 0.5, 0)
+          ], 7, 6, 1.02, 0.80, 201));
+        } else if (type === 2) {
+          parts.push(buildCrookedTube([
+            new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(0.02, -0.15, 0.02),
+            new THREE.Vector3(0.05, 0.18, 0.045), new THREE.Vector3(0.09, 0.5, 0.08)
+          ], 6, 5, 1.08, 0.22, 301));
+          parts.push(buildCrookedTube([
+            new THREE.Vector3(0.04, 0.05, 0.03), new THREE.Vector3(1.5, 0.22, -0.5), new THREE.Vector3(2.2, 0.34, -0.8)
+          ], 3, 4, 0.42, 0.12, 302));
+        } else if (type === 3) {
+          parts.push(buildCrookedTube([
+            new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(-0.02, -0.1, 0.015),
+            new THREE.Vector3(0.015, 0.2, -0.01), new THREE.Vector3(0.03, 0.5, 0.01)
+          ], 6, 5, 1.0, 0.62, 401));
+          parts.push(buildCrookedTube([
+            new THREE.Vector3(0.01, 0.04, 0), new THREE.Vector3(-1.4, 0.22, 0.8), new THREE.Vector3(-2.1, 0.36, 1.2)
+          ], 3, 4, 0.52, 0.16, 402));
+          parts.push(buildCrookedTube([
+            new THREE.Vector3(-0.01, -0.2, 0.01), new THREE.Vector3(1.1, -0.08, -0.7)
+          ], 2, 4, 0.38, 0.14, 403));
+        } else if (type === 4) {
+          parts.push(buildCrookedTube([
+            new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(-0.02, -0.08, 0.025),
+            new THREE.Vector3(0.025, 0.2, 0.01), new THREE.Vector3(-0.005, 0.5, 0)
+          ], 5, 6, 1.08, 0.88, 501));
+        } else {
+          parts.push(buildCrookedTube([
+            new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(0.018, -0.1, -0.012),
+            new THREE.Vector3(-0.022, 0.22, 0.018), new THREE.Vector3(0.01, 0.5, 0.03)
+          ], 5, 5, 1.0, 0.16, 601));
+        }
+        return mergeGeometries(parts);
+      }
+
+      const branchGeos = [0, 1, 2, 3, 4, 5].map(createBranchArchetype);
+      const branchMat = new THREE.MeshStandardMaterial({
+        map: barkTex.map,
+        bumpMap: barkTex.bumpMap,
+        bumpScale: 0.04,
+        roughness: 0.90,
+        metalness: 0.04
+      });
+
+      const nailGeo = new THREE.CylinderGeometry(0.0042, 0.0022, 0.012, 6);
+      const nailMat = new THREE.MeshStandardMaterial({ color: 0xa2a7ad, roughness: 0.38, metalness: 0.86 });
+
+      // =========================================================================
+      // 4. ANATOMICALLY ACCURATE 7m SUN WUKONG SCULPTURE
+      //    (Winged Brow + Sunken Nasal Root + Upturned Monkey Nose + Protruding
+      //     Monkey Muzzle + Almond Sky-Lit Hollowed Eyes + Pointed Monkey Ears +
+      //     Flared Cheek Whiskers + Spiky Crown & Swept Plumes + High Armor Collar)
+      // =========================================================================
+      setProgress(50);
+
+      function inChestArch(x, y, z, margin = 0.0) {
+        if (Math.abs(z) > 1.75) return false;
+        const hw = 0.78 + margin;
+        if (y < -0.1) return false;
+        if (y <= 1.68) return Math.abs(x) < hw;
+        const maxY = 2.46 + margin;
+        if (y <= maxY) {
+          const dy = (y - 1.68) / (maxY - 1.68);
+          const allowedX = hw * Math.sqrt(Math.max(0, 1.0 - dy * dy));
+          return Math.abs(x) < allowedX;
+        }
+        return false;
+      }
+
+      // Head pushed forward ahead of hunched armored collar, tilted gently downward
+      const HEAD_POS = new THREE.Vector3(0, 5.06, 0.42);
+      const HEAD_PITCH = 0.16; // ~9.2 deg solemn downward gaze
+      const headQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), HEAD_PITCH);
+
+      function headToWorld(lx, ly, lz) {
+        return new THREE.Vector3(lx, ly, lz).applyQuaternion(headQuat).add(HEAD_POS);
+      }
+
+      // Sharp almond-angled eye tunnels sloping diagonally upward toward back sky
+      function inAlmondEyeTunnel(lx, ly, lz, margin = 0.0) {
+        if (lz > 0.95 || lz < -1.15) return false;
+        for (let sx of [-1, 1]) {
+          const t = THREE.MathUtils.clamp((0.86 - lz) / 1.95, 0, 1);
+          const cx = sx * (0.33 + 0.04 * t);
+          const cy = 0.13 + 0.25 * t;
+          const ang = sx * 0.24; // outer eye corner tilted up 14 deg
+          const dx0 = lx - cx;
+          const dy0 = ly - cy;
+          const rxRot = dx0 * Math.cos(-ang) - dy0 * Math.sin(-ang);
+          const ryRot = dx0 * Math.sin(-ang) + dy0 * Math.cos(-ang);
+          const rx = 0.165 + margin + 0.05 * t;
+          const ry = 0.072 + margin + 0.055 * t;
+          if ((rxRot / rx) * (rxRot / rx) + (ryRot / ry) * (ryRot / ry) < 1.0) return true;
+        }
+        return false;
+      }
+
+      const branchBuckets = [[], [], [], [], [], []];
+      const nailList = [];
+      const UP = new THREE.Vector3(0, 1, 0);
+
+      function pushBranch(type, p1, p2, radius, colorHex, roll = 0, addNailChance = 0.85, hslJitter = 0.06) {
+        const dir = new THREE.Vector3().subVectors(p2, p1);
+        const len = dir.length();
+        if (len < 0.04) return;
+        dir.divideScalar(len);
+        const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+        const q = new THREE.Quaternion().setFromUnitVectors(UP, dir);
+        if (roll !== 0) q.multiply(new THREE.Quaternion().setFromAxisAngle(UP, roll));
+        const m = new THREE.Matrix4().compose(mid, q, new THREE.Vector3(radius, len, radius));
+        const col = new THREE.Color(colorHex);
+        col.offsetHSL(randRange(-0.012, 0.012), randRange(-0.03, 0.03), randRange(-hslJitter, hslJitter));
+        branchBuckets[type].push({ matrix: m, color: col });
+
+        if (rand() < addNailChance) {
+          const count = len > 0.45 ? 2 : 1;
+          for (let n = 0; n < count; n++) {
+            const nt = n === 0 ? randRange(0.15, 0.38) : randRange(0.62, 0.86);
+            const np = new THREE.Vector3().lerpVectors(p1, p2, nt);
+            const outNorm = new THREE.Vector3(np.x, 0, np.z).normalize();
+            if (outNorm.lengthSq() < 0.1) outNorm.set(0, 0, 1);
+            np.addScaledVector(outNorm, radius * 0.82);
+            const nq = new THREE.Quaternion().setFromUnitVectors(UP, outNorm);
+            nailList.push(new THREE.Matrix4().compose(np, nq, new THREE.Vector3(1, 1, 1)));
+          }
+        }
+      }
+
+      function placeSplineBranches(pts, type, radius, color, countPerSeg = 2, jitter = 0.02, inHead = false, checkEye = true, nailChance = 0.85) {
+        const curve = new THREE.CatmullRomCurve3(pts);
+        const total = (pts.length - 1) * countPerSeg;
+        for (let k = 0; k < total; k++) {
+          const t0 = Math.max(0, k / total - 0.03);
+          const t1 = Math.min(1, (k + 1) / total + 0.03);
+          const a = curve.getPointAt(t0);
+          const b = curve.getPointAt(t1);
+          a.x += randRange(-jitter, jitter); a.y += randRange(-jitter, jitter); a.z += randRange(-jitter, jitter);
+          b.x += randRange(-jitter, jitter); b.y += randRange(-jitter, jitter); b.z += randRange(-jitter, jitter);
+
+          if (inHead && checkEye) {
+            const m = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5);
+            if (inAlmondEyeTunnel(a.x, a.y, a.z) || inAlmondEyeTunnel(m.x, m.y, m.z) || inAlmondEyeTunnel(b.x, b.y, b.z)) continue;
+          }
+          const wa = inHead ? headToWorld(a.x, a.y, a.z) : a;
+          const wb = inHead ? headToWorld(b.x, b.y, b.z) : b;
+          const wm = new THREE.Vector3().addVectors(wa, wb).multiplyScalar(0.5);
+          if (!inHead && (inChestArch(wa.x, wa.y, wa.z, -0.02) || inChestArch(wm.x, wm.y, wm.z, -0.02) || inChestArch(wb.x, wb.y, wb.z, -0.02))) continue;
+          pushBranch(type, wa, wb, radius * randRange(0.86, 1.15), color, randRange(0, Math.PI * 2), nailChance);
+        }
+      }
+
+      // ---- 4A. HEROIC BUST TORSO, WAISTED BASE, HIGH ARMORED COLLAR & CAPE ----
+      function torsoWidthAt(y) {
+        if (y < 2.15) {
+          // Slight heroic waisted flare from grounded base (3.05m) up to broad chest/arms (3.72m)
+          const t = y / 2.15;
+          return THREE.MathUtils.lerp(3.05, 3.72, Math.pow(t, 0.72));
+        }
+        if (y < 3.25) {
+          const t = (y - 2.15) / 1.10;
+          return 3.72 - 0.58 * Math.pow(t, 1.5);
+        }
+        const t = (y - 3.25) / 0.80;
+        return THREE.MathUtils.lerp(3.14, 1.02, t);
+      }
+
+      function torsoSurfacePoint(uAngle, y, depthScale = 1.0) {
+        const w = torsoWidthAt(y);
+        const baseD = y < 2.5 ? 1.24 : THREE.MathUtils.lerp(1.24, 0.94, (y - 2.5) / 1.55);
+        const sx = Math.sin(uAngle);
+        const cz = Math.cos(uAngle);
+        let x = sx * w;
+        let z = cz * baseD * depthScale;
+
+        // Forward heroic chest plate projection
+        if (cz > 0.1 && y > 2.25 && y < 3.6) {
+          z += 0.24 * Math.sin(((y - 2.25) / 1.35) * Math.PI) * Math.pow(cz, 1.35);
+        }
+        // Flowing hunched cloak/cape mass curving backward on upper back
+        if (cz < -0.15 && y > 2.1) {
+          z -= 0.34 * Math.sin(((y - 2.1) / 1.9) * Math.PI * 0.85) * Math.pow(-cz, 1.2);
+        }
+        // Sculpted deltoid/bicep separation groove
+        if (Math.abs(sx) > 0.52 && y < 3.0) {
+          const armGroove = Math.exp(-Math.pow((Math.abs(x) - 2.15) / 0.34, 2));
+          z -= armGroove * 0.22 * (cz > 0 ? 1 : 0.45);
+        }
+        return new THREE.Vector3(x, y, z);
+      }
+
+      // Inner structural torso core
+      for (let i = 0; i < 1800; i++) {
+        const y = randRange(0.05, 3.92);
+        const w = torsoWidthAt(y) * randRange(0.18, 0.90);
+        const ang = randRange(0, Math.PI * 2);
+        const p1 = new THREE.Vector3(Math.sin(ang) * w, y, Math.cos(ang) * randRange(0.18, 1.02));
+        const p2 = p1.clone().add(new THREE.Vector3(randRange(-0.55, 0.55), randRange(-0.55, 0.65), randRange(-0.45, 0.45)));
+        if (p2.y < 0) p2.y = 0;
+        const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+        if (inChestArch(p1.x, p1.y, p1.z, 0.03) || inChestArch(mid.x, mid.y, mid.z, 0.03) || inChestArch(p2.x, p2.y, p2.z, 0.03)) continue;
+        if (Math.abs(p2.x) > torsoWidthAt(Math.min(p2.y, 3.95))) continue;
+        pushBranch(rand() < 0.6 ? 0 : 4, p1, p2, randRange(0.028, 0.052), 0x4f3f30, randRange(0, 6.28), 0.65);
+      }
+
+      // Vaulted chest archway ribs
+      for (let z = -1.28; z <= 1.24; z += 0.16) {
+        const archPts = [];
+        for (let i = 0; i <= 14; i++) {
+          const t = i / 14;
+          let ax, ay;
+          if (t < 0.28) { ax = -0.82; ay = (t / 0.28) * 1.68; }
+          else if (t <= 0.72) {
+            const ang = Math.PI - ((t - 0.28) / 0.44) * Math.PI;
+            ax = Math.cos(ang) * 0.82; ay = 1.68 + Math.sin(ang) * 0.82;
+          } else { ax = 0.82; ay = ((1 - t) / 0.28) * 1.68; }
+          archPts.push(new THREE.Vector3(ax, ay, z + randRange(-0.04, 0.04)));
+        }
+        placeSplineBranches(archPts, 1, 0.030, 0x725d49, 2, 0.025, false, false);
+      }
+      for (let ang = 0.15; ang <= Math.PI - 0.15; ang += 0.22) {
+        const ax = Math.cos(ang) * 0.85, ay = 1.68 + Math.sin(ang) * 0.85;
+        placeSplineBranches([
+          new THREE.Vector3(ax, ay, -1.32), new THREE.Vector3(ax * 1.03, ay + 0.04, 0), new THREE.Vector3(ax, ay, 1.28)
+        ], 0, 0.028, 0x675340, 4, 0.024, false, false);
+      }
+
+      // Horizontal & armor contour bands across bust
+      for (let band = 0; band < 34; band++) {
+        const y = 0.12 + (band / 33) * 3.72;
+        const pts = [];
+        for (let s = 0; s <= 28; s++) {
+          const u = (s / 28) * Math.PI * 2;
+          pts.push(torsoSurfacePoint(u, y + Math.sin(u * 2) * 0.07, 1.0));
+        }
+        placeSplineBranches(pts, band % 3 === 0 ? 0 : 1, randRange(0.022, 0.035), 0x867059, 2, 0.034, false, false);
+      }
+
+      // Layered Chest Armor, Pectoral Plates & Shoulder Pauldrons ("锁子甲肩甲")
+      for (let side of [-1, 1]) {
+        for (let k = 0; k < 18; k++) {
+          const y0 = 2.48 + k * 0.078;
+          placeSplineBranches([
+            new THREE.Vector3(side * 0.12, y0, 1.38),
+            new THREE.Vector3(side * 1.35, y0 + 0.20, 1.18),
+            new THREE.Vector3(side * 2.55, y0 - 0.05, 0.72),
+            new THREE.Vector3(side * 3.48, y0 - 0.58, 0.05)
+          ], k % 2 === 0 ? 1 : 3, 0.026, 0x917a62, 3, 0.03, false, false);
+        }
+        // Layered beast-head / pauldron scalloped shoulder scales
+        for (let ring = 0; ring < 10; ring++) {
+          const rY = 2.12 + ring * 0.165;
+          const pts = [];
+          for (let a = -0.95; a <= 0.95; a += 0.24) {
+            pts.push(new THREE.Vector3(side * (2.52 + Math.cos(a) * 1.18), rY - Math.abs(a) * 0.34, Math.sin(a) * 1.06));
+          }
+          placeSplineBranches(pts, 0, 0.032, 0x7b654f, 2, 0.028, false, false);
+        }
+        // Upper arms descending cleanly
+        for (let a = -0.65; a <= 0.65; a += 0.16) {
+          const pts = [];
+          for (let y = 0.02; y <= 2.95; y += 0.35) {
+            const w = torsoWidthAt(y);
+            pts.push(new THREE.Vector3(side * (w * (0.78 + 0.2 * Math.cos(a))), y, Math.sin(a) * 1.02));
+          }
+          placeSplineBranches(pts, 4, 0.028, 0x806a54, 2, 0.035, false, false);
+        }
+      }
+
+      // High Sweeping Warrior Cape / Armored Collar behind neck ("高耸披风甲领")
+      for (let h = 0; h < 16; h++) {
+        const t = h / 15;
+        const cy = THREE.MathUtils.lerp(3.55, 4.65, t);
+        const radX = THREE.MathUtils.lerp(1.42, 1.12, t);
+        const backZ = THREE.MathUtils.lerp(-0.48, -0.78, t);
+        const pts = [];
+        for (let a = -1.65; a <= 1.65; a += 0.33) {
+          pts.push(new THREE.Vector3(Math.sin(a) * radX, cy - Math.abs(a) * 0.18, backZ - Math.cos(a) * 0.45));
+        }
+        placeSplineBranches(pts, h % 2 === 0 ? 1 : 0, 0.026, 0x6f5b47, 2, 0.025, false, false);
+      }
+
+      // Rugged outer twigs across torso for unpolished bark roughness
+      for (let i = 0; i < 1550; i++) {
+        const y = randRange(0.08, 3.8);
+        const u = randRange(0, Math.PI * 2);
+        const p1 = torsoSurfacePoint(u, y, randRange(0.95, 1.05));
+        if (inChestArch(p1.x, p1.y, p1.z, 0.02)) continue;
+        const tangent = new THREE.Vector3(Math.cos(u), randRange(-0.85, 0.85), -Math.sin(u)).normalize();
+        const outward = new THREE.Vector3(Math.sin(u), randRange(-0.2, 0.35), Math.cos(u)).normalize();
+        const dir = tangent.addScaledVector(outward, randRange(0.08, 0.38)).normalize();
+        const p2 = p1.clone().addScaledVector(dir, randRange(0.26, 0.68));
+        if (p2.y < 0.01) p2.y = 0.01;
+        const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+        if (inChestArch(mid.x, mid.y, mid.z, 0.01) || inChestArch(p2.x, p2.y, p2.z, 0.01)) continue;
+        pushBranch(rand() < 0.45 ? 3 : (rand() < 0.5 ? 2 : 5), p1, p2, randRange(0.010, 0.022), rand() < 0.5 ? 0x978067 : 0x75614c, randRange(0, 6.28), 0.7);
+      }
+
+      // Muscular forward-angled neck connecting bust to forward-thrust Wukong head
+      for (let i = 0; i < 36; i++) {
+        const ang = (i / 36) * Math.PI * 2;
+        const twist = 0.32 * (i % 2 === 0 ? 1 : -1);
+        const pts = [];
+        for (let s = 0; s <= 5; s++) {
+          const t = s / 5;
+          const y = THREE.MathUtils.lerp(3.55, 4.65, t);
+          const zShift = THREE.MathUtils.lerp(0.05, 0.32, t);
+          const rad = THREE.MathUtils.lerp(0.90, 0.68, t);
+          const a = ang + twist * t;
+          pts.push(new THREE.Vector3(Math.sin(a) * rad, y, Math.cos(a) * rad * 0.90 + zShift));
+        }
+        placeSplineBranches(pts, i % 3 === 0 ? 0 : 1, 0.024, 0x7b654f, 2, 0.022, false, false);
+      }
+
+      // ---- 4B. SUN WUKONG HEAD: DARK SOLID-SHADOW CRANIUM & MUZZLE ARMATURE ----
+      // Dense interior cranium & muzzle shadow core (leaves ONLY the two almond eye tunnels open!)
+      for (let i = 0; i < 1350; i++) {
+        const phi = randRange(0, Math.PI * 2);
+        const costh = randRange(-0.88, 0.94);
+        const sinth = Math.sqrt(1 - costh * costh);
+        const rScale = randRange(0.54, 0.94);
+
+        let p1 = new THREE.Vector3(
+          sinth * Math.sin(phi) * 0.80 * rScale,
+          costh * 0.82 * rScale + 0.14,
+          sinth * Math.cos(phi) * 0.88 * rScale - 0.04
+        );
+        // Extend dark shadow lattice into lower muzzle core behind protruding monkey snout
+        if (Math.cos(phi) > 0.35 && costh < -0.05 && costh > -0.65) {
+          p1.z += 0.18 * rScale;
+        }
+        // Keep exact front facial surface crisp so surface branches define features cleanly
+        if (p1.z > 0.72 && p1.y > -0.45 && p1.y < 0.55) continue;
+
+        const tangent = new THREE.Vector3(Math.cos(phi), randRange(-0.7, 0.7), -Math.sin(phi)).normalize();
+        const p2 = p1.clone().addScaledVector(tangent, randRange(0.24, 0.56));
+        const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+        if (inAlmondEyeTunnel(p1.x, p1.y, p1.z, 0.015) || inAlmondEyeTunnel(mid.x, mid.y, mid.z, 0.015) || inAlmondEyeTunnel(p2.x, p2.y, p2.z, 0.015)) continue;
+
+        const isCore = rScale < 0.76;
+        pushBranch(rand() < 0.5 ? 1 : 4, headToWorld(p1.x, p1.y, p1.z), headToWorld(p2.x, p2.y, p2.z), randRange(0.015, 0.028), isCore ? 0x35291f : 0x7f6953, randRange(0, 6.28), 0.75);
+      }
+
+      // ---- 4C. ICONIC WUKONG FACE FEATURES (Sharp Contrast & Exact Monkey Anatomy) ----
+      const FACE_LIGHT = 0xb59c7f; // distinct weathered pale-ochre monkey face mask tone
+      const FACE_MID   = 0x9b8368;
+      const CREVICE_DK = 0x33271d; // deep shadow crease tone around eyes/nasal root/mouth
+
+      for (let side of [-1, 1]) {
+        // 1. FIERCE WINGED BROW RIDGE ("倒八字高耸眉弓", Z=+0.96, sweeping sharply upward!)
+        for (let layer = 0; layer < 11; layer++) {
+          const dy = (layer - 5) * 0.015;
+          const dz = (5 - Math.abs(layer - 5)) * 0.012;
+          placeSplineBranches([
+            new THREE.Vector3(side * 0.015, 0.21 + dy, 0.92 + dz),
+            new THREE.Vector3(side * 0.16,  0.29 + dy, 0.96 + dz),
+            new THREE.Vector3(side * 0.36,  0.39 + dy, 0.96 + dz),
+            new THREE.Vector3(side * 0.56,  0.34 + dy, 0.80 + dz),
+            new THREE.Vector3(side * 0.68,  0.22 + dy, 0.58)
+          ], 1, 0.017, layer < 3 ? CREVICE_DK : FACE_LIGHT, 3, 0.008, true, false, 0.9);
+        }
+        // Glabella vertical angry/solemn furrow lines ("眉心川字纹")
+        placeSplineBranches([
+          new THREE.Vector3(side * 0.04, 0.20, 0.91),
+          new THREE.Vector3(side * 0.05, 0.32, 0.93),
+          new THREE.Vector3(side * 0.07, 0.44, 0.89)
+        ], 1, 0.014, FACE_MID, 2, 0.006, true, false);
+
+        // 2. ALMOND-ANGLED HOLLOWED EYE SOCKETS ("杏核镂空眼窝", +14 deg upward outer tilt)
+        const rotEye = (x0, y0) => {
+          const ang = side * 0.24;
+          const x = side * x0;
+          const y = y0;
+          const rx = x * Math.cos(ang) - y * Math.sin(ang);
+          const ry = x * Math.sin(ang) + y * Math.cos(ang);
+          return [side * 0.33 + rx, 0.13 + ry];
+        };
+        // Upper drooping eyelid ("眉眼低垂、沉静威严")
+        for (let k = 0; k < 6; k++) {
+          const zOff = -k * 0.042;
+          const [x1, y1] = rotEye(-0.17, 0.01);
+          const [x2, y2] = rotEye(0.0,   0.075);
+          const [x3, y3] = rotEye(0.17,  0.00);
+          placeSplineBranches([
+            new THREE.Vector3(x1, y1, 0.83 + zOff),
+            new THREE.Vector3(x2, y2, 0.85 + zOff),
+            new THREE.Vector3(x3, y3, 0.77 + zOff)
+          ], 1, 0.013, k < 2 ? FACE_LIGHT : CREVICE_DK, 3, 0.006, true, false);
+        }
+        // Lower orbital rim
+        for (let k = 0; k < 5; k++) {
+          const zOff = -k * 0.042;
+          const [x1, y1] = rotEye(-0.16, -0.025);
+          const [x2, y2] = rotEye(0.0,   -0.068);
+          const [x3, y3] = rotEye(0.165, -0.020);
+          placeSplineBranches([
+            new THREE.Vector3(x1, y1, 0.82 + zOff),
+            new THREE.Vector3(x2, y2, 0.83 + zOff),
+            new THREE.Vector3(x3, y3, 0.76 + zOff)
+          ], 1, 0.013, k < 2 ? FACE_LIGHT : CREVICE_DK, 3, 0.006, true, false);
+        }
+        // Deep dark recessed eye tunnel rings piercing toward sky dome behind skull!
+        for (let d = 0; d < 14; d++) {
+          const t = d / 13;
+          const lz = THREE.MathUtils.lerp(0.76, -0.82, t);
+          const cx = side * (0.33 + 0.04 * ((0.86 - lz) / 1.95));
+          const cy = 0.13 + 0.25 * ((0.86 - lz) / 1.95);
+          const ang = side * 0.24;
+          const rx = 0.178 + 0.05 * ((0.86 - lz) / 1.95);
+          const ry = 0.082 + 0.055 * ((0.86 - lz) / 1.95);
+          const ringPts = [];
+          for (let a = 0; a <= 8; a++) {
+            const u = (a / 8) * Math.PI * 2;
+            const lx0 = Math.cos(u) * rx;
+            const ly0 = Math.sin(u) * ry;
+            ringPts.push(new THREE.Vector3(
+              cx + lx0 * Math.cos(ang) - ly0 * Math.sin(ang),
+              cy + lx0 * Math.sin(ang) + ly0 * Math.cos(ang),
+              lz
+            ));
+          }
+          placeSplineBranches(ringPts, 4, 0.014, CREVICE_DK, 2, 0.008, true, false, 0.4);
+        }
+
+        // 3. HIGH ROUNDED MONKEY CHEEKBONES ("高颧骨与颧肌")
+        for (let c = 0; c < 14; c++) {
+          const t = c / 13;
+          const yStart = THREE.MathUtils.lerp(0.03, -0.26, t);
+          const zMid = THREE.MathUtils.lerp(0.84, 0.78, t);
+          placeSplineBranches([
+            new THREE.Vector3(side * 0.20, yStart, 0.85),
+            new THREE.Vector3(side * 0.42, yStart - 0.04, zMid),
+            new THREE.Vector3(side * 0.62, yStart + 0.02, 0.56)
+          ], 1, 0.014, FACE_LIGHT, 3, 0.008, true, true, 0.85);
+        }
+
+        // 4. DEEP NASOLABIAL GROOVES SEPARATING MONKEY MUZZLE FROM CHEEKS ("猴腮沟/法令纹")
+        for (let g = 0; g < 4; g++) {
+          placeSplineBranches([
+            new THREE.Vector3(side * 0.14, -0.05, 0.89),
+            new THREE.Vector3(side * 0.28, -0.18, 0.89),
+            new THREE.Vector3(side * 0.31, -0.34, 0.84),
+            new THREE.Vector3(side * 0.22, -0.49, 0.76)
+          ], 1, 0.012, CREVICE_DK, 3, 0.006, true, false);
+        }
+
+        // 5. PEACH-HEART MONKEY FACE BORDER ("猴面桃心外缘框")
+        for (let layer = 0; layer < 4; layer++) {
+          const off = layer * 0.014;
+          placeSplineBranches([
+            new THREE.Vector3(0, 0.52 + off, 0.84),
+            new THREE.Vector3(side * 0.36, 0.54 + off, 0.76),
+            new THREE.Vector3(side * 0.64 + side * off, 0.24, 0.58),
+            new THREE.Vector3(side * 0.60 + side * off, -0.14, 0.58),
+            new THREE.Vector3(side * 0.36, -0.46 - off, 0.74),
+            new THREE.Vector3(0, -0.58 - off, 0.82)
+          ], 1, 0.016, FACE_LIGHT, 3, 0.009, true, true);
+        }
+
+        // 6. ICONIC POINTED FLARED MONKEY EARS ("招风尖猴耳")
+        for (let layer = 0; layer < 6; layer++) {
+          const sc = 1.0 - layer * 0.09;
+          const isInner = layer >= 4;
+          placeSplineBranches([
+            new THREE.Vector3(side * 0.78, 0.18 * sc, 0.08),
+            new THREE.Vector3(side * (0.98 + layer * 0.018), 0.34 * sc, -0.02),
+            new THREE.Vector3(side * (1.16 - layer * 0.04), 0.44 * sc, -0.12), // pointed upper ear tip!
+            new THREE.Vector3(side * (1.06 - layer * 0.03), 0.04, -0.10),
+            new THREE.Vector3(side * 0.88, -0.22 * sc, -0.03),
+            new THREE.Vector3(side * 0.78, -0.08 * sc, 0.08)
+          ], 1, 0.016, isInner ? CREVICE_DK : FACE_MID, 2, 0.008, true, false);
+        }
+      }
+
+      // 7. SUNKEN NASAL ROOT + SHORT UPTURNED MONKEY NOSE ("山根深凹 + 短翘猴鼻")
+      // Deep shadow at nasal root (Z=+0.78) bridging out to compact flared nose tip (Z=+0.96)
+      for (let i = -2; i <= 2; i++) {
+        const nx = i * 0.026;
+        const nzBoost = (1 - Math.abs(i) / 3) * 0.03;
+        placeSplineBranches([
+          new THREE.Vector3(nx * 0.7, 0.21, 0.85),   // brow dip
+          new THREE.Vector3(nx * 0.6, 0.13, 0.78),   // deep nasal root dip!
+          new THREE.Vector3(nx * 0.7, 0.02, 0.87 + nzBoost),
+          new THREE.Vector3(nx * 0.9, -0.05, 0.96 + nzBoost), // short upturned monkey nose tip
+          new THREE.Vector3(nx * 0.8, -0.10, 0.93)
+        ], 1, 0.013, i === 0 ? FACE_LIGHT : FACE_MID, 3, 0.006, true, false);
+      }
+      // Flared monkey nostrils ("宽扁猴鼻翼")
+      for (let side of [-1, 1]) {
+        placeSplineBranches([
+          new THREE.Vector3(side * 0.03, -0.03, 0.95),
+          new THREE.Vector3(side * 0.14, -0.07, 0.90),
+          new THREE.Vector3(side * 0.06, -0.12, 0.89)
+        ], 1, 0.014, FACE_MID, 2, 0.006, true, false);
+        // Dark nostril shadow pit
+        pushBranch(4, headToWorld(side * 0.04, -0.10, 0.91), headToWorld(side * 0.09, -0.09, 0.87), 0.015, CREVICE_DK, 0, 0);
+      }
+
+      // 8. CONVEX PROTRUDING MONKEY MUZZLE ("突出吻部 / 雷公嘴", peak Z=+1.03!) & CALM CLOSED MOUTH
+      // Upper muzzle curved dome right under the nose
+      for (let m = 0; m < 10; m++) {
+        const t = m / 9;
+        const my = THREE.MathUtils.lerp(-0.11, -0.30, t);
+        const mzCenter = THREE.MathUtils.lerp(0.95, 1.03, Math.sin(t * Math.PI * 0.75));
+        const mw = THREE.MathUtils.lerp(0.18, 0.30, t);
+        placeSplineBranches([
+          new THREE.Vector3(-mw, my - 0.02, 0.84),
+          new THREE.Vector3(-mw * 0.5, my, mzCenter - 0.03),
+          new THREE.Vector3(0, my + 0.01, mzCenter),
+          new THREE.Vector3(mw * 0.5, my, mzCenter - 0.03),
+          new THREE.Vector3(mw, my - 0.02, 0.84)
+        ], 1, 0.013, FACE_LIGHT, 3, 0.006, true, false);
+      }
+      // Calm solemn closed mouth crease ("神情沉静，不苟言笑")
+      for (let m = 0; m < 4; m++) {
+        const dy = (m - 1.5) * 0.024;
+        const isSlit = m === 1 || m === 2;
+        placeSplineBranches([
+          new THREE.Vector3(-0.27, -0.35 + dy, 0.82),
+          new THREE.Vector3(-0.12, -0.32 + dy, 0.96),
+          new THREE.Vector3(0.0,   -0.315 + dy, 1.00),
+          new THREE.Vector3(0.12,  -0.32 + dy, 0.96),
+          new THREE.Vector3(0.27,  -0.35 + dy, 0.82)
+        ], 1, 0.013, isSlit ? CREVICE_DK : FACE_LIGHT, 3, 0.005, true, false);
+      }
+      // Lower lip & receding tapered monkey chin
+      for (let c = 0; c < 8; c++) {
+        const t = c / 7;
+        const cy = THREE.MathUtils.lerp(-0.37, -0.58, t);
+        const cz = THREE.MathUtils.lerp(0.98, 0.81, t);
+        const cw = THREE.MathUtils.lerp(0.26, 0.14, t);
+        placeSplineBranches([
+          new THREE.Vector3(-cw, cy, cz - 0.10),
+          new THREE.Vector3(0, cy, cz),
+          new THREE.Vector3(cw, cy, cz - 0.10)
+        ], 1, 0.014, FACE_MID, 3, 0.007, true, false);
+      }
+
+      // ---- 4D. WIDE FLARED CHEEK WHISKERS ("炸开的猴腮毛") & POINTED CHIN BEARD ("下巴胡须") ----
+      for (let side of [-1, 1]) {
+        // Flared monkey sideburns sweeping outward & down from cheekbones/temples
+        for (let i = 0; i < 165; i++) {
+          const t = rand();
+          const start = new THREE.Vector3(
+            side * randRange(0.54, 0.72),
+            THREE.MathUtils.lerp(0.32, -0.45, t),
+            randRange(0.25, 0.62)
+          );
+          const dir = new THREE.Vector3(
+            side * randRange(0.65, 1.0),
+            randRange(-0.55, 0.18),
+            randRange(-0.35, 0.22)
+          ).normalize();
+          const tip = start.clone().addScaledVector(dir, randRange(0.26, 0.58));
+          pushBranch(rand() < 0.5 ? 2 : 5, headToWorld(start.x, start.y, start.z), headToWorld(tip.x, tip.y, tip.z), randRange(0.008, 0.016), rand() < 0.4 ? 0xa38c72 : 0x7b654f, randRange(0, 6.28), 0.35);
+        }
+      }
+      // Tapered chin beard ring ("下巴一圈胡须")
+      for (let i = 0; i < 290; i++) {
+        const ang = randRange(-Math.PI * 0.42, Math.PI * 0.42);
+        const start = new THREE.Vector3(
+          Math.sin(ang) * randRange(0.06, 0.48),
+          -0.48 - Math.cos(ang) * randRange(0.04, 0.14),
+          Math.cos(ang) * 0.56 + 0.24
+        );
+        const dir = new THREE.Vector3(
+          Math.sin(ang) * randRange(0.25, 0.65),
+          randRange(-0.98, -0.45),
+          randRange(0.02, 0.36)
+        ).normalize();
+        const tip = start.clone().addScaledVector(dir, randRange(0.24, 0.62));
+        pushBranch(rand() < 0.5 ? 2 : 5, headToWorld(start.x, start.y, start.z), headToWorld(tip.x, tip.y, tip.z), randRange(0.007, 0.015), 0x978067, randRange(0, 6.28), 0.35);
+      }
+
+      // ---- 4E. WILD FLARED HAIR CROWN ("无箍、炸起来的发冠与飞扬发束") ----
+      // Spiky radiating twigs bursting upward & back from hairline (NO tight hoop!)
+      for (let i = 0; i < 1200; i++) {
+        const phi = randRange(-Math.PI, Math.PI);
+        const elev = randRange(0.20, Math.PI * 0.49);
+        const cx = Math.cos(elev) * Math.sin(phi) * 0.80;
+        const cy = Math.sin(elev) * 0.82 + 0.14;
+        const cz = Math.cos(elev) * Math.cos(phi) * 0.84 - 0.06;
+        if (cz > 0.52 && cy < 0.50) continue; // keep forehead/brow clean
+
+        const base = new THREE.Vector3(cx, cy, cz);
+        const radial = new THREE.Vector3(cx * 0.88, Math.abs(cy) + 0.72, cz * 0.65 - 0.25).normalize();
+        radial.x += randRange(-0.26, 0.26);
+        radial.y += randRange(0.14, 0.48);
+        radial.z += randRange(-0.32, 0.12);
+        radial.normalize();
+
+        const len = randRange(0.42, 1.30);
+        const tip = base.clone().addScaledVector(radial, len);
+        const col = rand() < 0.35 ? 0xa58e73 : (rand() < 0.6 ? 0x867059 : 0x6b5845);
+        pushBranch(rand() < 0.4 ? 2 : (rand() < 0.5 ? 5 : 3), headToWorld(base.x, base.y, base.z), headToWorld(tip.x, tip.y, tip.z), randRange(0.007, 0.017), col, randRange(0, 6.28), 0.35);
+      }
+
+      // Sweeping Great Sage crown plumes arcing gracefully back from upper temples (pure woven branches, no gold ring)
+      for (let side of [-1, 1]) {
+        for (let k = 0; k < 14; k++) {
+          const j = k * 0.032;
+          placeSplineBranches([
+            new THREE.Vector3(side * (0.24 + j * 0.35), 0.68, 0.32),
+            new THREE.Vector3(side * (0.56 + j * 0.55), 1.32 + j * 0.45, -0.05),
+            new THREE.Vector3(side * (0.98 + j * 0.75), 1.78 + j * 0.65, -0.62),
+            new THREE.Vector3(side * (1.35 + j * 0.85), 2.02 + j * 0.70, -1.18),
+            new THREE.Vector3(side * (1.58 + j * 0.90), 1.88 + j * 0.65, -1.62)
+          ], k % 2 === 0 ? 2 : 1, 0.014, 0x9c866c, 3, 0.022, true, false, 0.45);
+        }
+      }
+
+      // =========================================================================
+      // 5. COURTYARD WORKS (Horse, Totoro, Swan, White Deer, Plaque)
+      // =========================================================================
+      setProgress(74);
+
+      function addEllipsoidBranches(cx, cy, cz, rx, ry, rz, count, radius, colorHex, yRot = 0) {
+        const q = new THREE.Quaternion().setFromAxisAngle(UP, yRot);
+        const center = new THREE.Vector3(cx, cy, cz);
+        for (let i = 0; i < count; i++) {
+          const u = randRange(0, Math.PI * 2), v = randRange(-0.98, 0.98), sv = Math.sqrt(1 - v * v);
+          const p1 = new THREE.Vector3(sv * Math.sin(u) * rx, v * ry, sv * Math.cos(u) * rz);
+          const tang = new THREE.Vector3(Math.cos(u), randRange(-0.7, 0.7), -Math.sin(u)).normalize();
+          const p2 = p1.clone().addScaledVector(tang, randRange(0.22, 0.52));
+          p1.applyQuaternion(q).add(center); p2.applyQuaternion(q).add(center);
+          pushBranch(i % 2 === 0 ? 1 : 4, p1, p2, radius * randRange(0.85, 1.15), colorHex, randRange(0, 6.28), 0.3);
+        }
+      }
+
+      function addLimbBranches(pStart, pEnd, rStart, rEnd, count, branchRad, colorHex) {
+        const dir = new THREE.Vector3().subVectors(pEnd, pStart);
+        const uDir = dir.clone().normalize();
+        const perp1 = new THREE.Vector3(1, 0, 0);
+        if (Math.abs(uDir.dot(perp1)) > 0.9) perp1.set(0, 0, 1);
+        perp1.crossVectors(uDir, perp1).normalize();
+        const perp2 = new THREE.Vector3().crossVectors(uDir, perp1).normalize();
+        for (let i = 0; i < count; i++) {
+          const ang = randRange(0, Math.PI * 2);
+          const t0 = randRange(0, 0.72), t1 = Math.min(1, t0 + randRange(0.25, 0.55));
+          const rad0 = THREE.MathUtils.lerp(rStart, rEnd, t0), rad1 = THREE.MathUtils.lerp(rStart, rEnd, t1);
+          const a = ang + randRange(-0.25, 0.25);
+          const p1 = pStart.clone().addScaledVector(dir, t0).addScaledVector(perp1, Math.cos(ang) * rad0).addScaledVector(perp2, Math.sin(ang) * rad0);
+          const p2 = pStart.clone().addScaledVector(dir, t1).addScaledVector(perp1, Math.cos(a) * rad1).addScaledVector(perp2, Math.sin(a) * rad1);
+          pushBranch(i % 3 === 0 ? 0 : 1, p1, p2, branchRad, colorHex, randRange(0, 6.28), 0.25);
+        }
+      }
+
+      // 3.5m Red Shire Horse
+      (function () {
+        const col = 0xcf4d24, hx = -6.4, hz = -3.2, rot = 0.55;
+        const rotPt = (x, y, z) => new THREE.Vector3(x, y, z).applyAxisAngle(UP, rot).add(new THREE.Vector3(hx, 0, hz));
+        addEllipsoidBranches(hx, 2.08, hz, 0.62, 0.58, 1.25, 340, 0.022, col, rot);
+        addLimbBranches(rotPt(0, 2.25, 0.85), rotPt(0, 3.25, 1.35), 0.44, 0.28, 130, 0.020, col);
+        const hPt = rotPt(0, 3.22, 1.56);
+        addEllipsoidBranches(hPt.x, 3.22, hPt.z, 0.22, 0.24, 0.48, 85, 0.016, col, rot);
+        for (const [lx, lz] of [[-0.36, 0.82], [0.36, 0.82], [-0.38, -0.88], [0.38, -0.88]]) {
+          addLimbBranches(rotPt(lx, 1.82, lz), rotPt(lx, 0.02, lz), 0.19, 0.14, 52, 0.016, col);
+        }
+        for (let m = 0; m < 42; m++) {
+          const t = m / 41;
+          pushBranch(2, rotPt(0, 2.55 + t * 0.85, 0.72 + t * 0.55), rotPt(randRange(-0.18, 0.18), 2.35 + t * 0.85, 0.52 + t * 0.5), 0.012, 0xb83e18, randRange(0, 6.28), 0.1);
+        }
+        for (let t = 0; t < 34; t++) {
+          pushBranch(2, rotPt(0, 2.15, -1.18), rotPt(randRange(-0.22, 0.22), randRange(1.05, 1.85), -1.65), 0.013, 0xb83e18, randRange(0, 6.28), 0.1);
+        }
+      })();
+
+      // Branch Totoro
+      (function () {
+        const tx = 5.4, tz = -4.2, rot = -0.35;
+        addEllipsoidBranches(tx, 0.96, tz, 0.85, 0.98, 0.78, 300, 0.018, 0x8a755f, rot);
+        addEllipsoidBranches(tx, 1.72, tz, 0.56, 0.44, 0.52, 130, 0.015, 0x8f7a63, rot);
+        for (let s of [-1, 1]) {
+          addLimbBranches(new THREE.Vector3(tx + s * 0.28, 2.02, tz), new THREE.Vector3(tx + s * 0.36, 2.46, tz), 0.11, 0.02, 22, 0.012, 0x7b6752);
+        }
+        addEllipsoidBranches(tx - 0.15, 0.85, tz + 0.42, 0.54, 0.56, 0.35, 90, 0.013, 0xb8a387, rot);
+      })();
+
+      // Branch Swan
+      (function () {
+        const sx = -3.4, sz = -7.6;
+        addEllipsoidBranches(sx, 0.65, sz, 0.52, 0.42, 0.82, 170, 0.014, 0xb8aa96, 0.4);
+        const neckPts = [
+          new THREE.Vector3(sx + 0.25, 0.85, sz + 0.55), new THREE.Vector3(sx + 0.38, 1.35, sz + 0.82),
+          new THREE.Vector3(sx + 0.28, 1.72, sz + 0.72), new THREE.Vector3(sx + 0.36, 1.82, sz + 0.92),
+          new THREE.Vector3(sx + 0.44, 1.74, sz + 1.08)
+        ];
+        for (let k = 0; k < 5; k++) {
+          placeSplineBranches(neckPts.map(p => p.clone().add(new THREE.Vector3(randRange(-0.04, 0.04), randRange(-0.04, 0.04), randRange(-0.04, 0.04)))), 1, 0.012, 0xc7baa5, 3, 0.01, false, false);
+        }
+      })();
+
+      // White Branch Deer
+      function buildBranchDeer(cx, cz, scale, yaw) {
+        const col = 0xddd7cc;
+        const rp = (x, y, z) => new THREE.Vector3(x * scale, y * scale, z * scale).applyAxisAngle(UP, yaw).add(new THREE.Vector3(cx, 0, cz));
+        addEllipsoidBranches(cx, 0.82 * scale, cz, 0.22 * scale, 0.24 * scale, 0.52 * scale, 95, 0.012 * scale, col, yaw);
+        for (const [lx, lz] of [[-0.14, 0.32], [0.14, 0.32], [-0.15, -0.34], [0.15, -0.34]]) {
+          addLimbBranches(rp(lx, 0.74, lz), rp(lx, 0.01, lz), 0.055 * scale, 0.03 * scale, 18, 0.01 * scale, col);
+        }
+        addLimbBranches(rp(0, 0.90, 0.35), rp(0, 1.44, 0.55), 0.11 * scale, 0.07 * scale, 35, 0.011 * scale, col);
+        const hp = rp(0, 1.46, 0.64);
+        addEllipsoidBranches(hp.x, 1.46 * scale, hp.z, 0.09 * scale, 0.10 * scale, 0.22 * scale, 34, 0.01 * scale, col, yaw);
+        for (let s of [-1, 1]) pushBranch(3, rp(s * 0.05, 1.52, 0.56), rp(s * 0.18, 1.88, 0.48), 0.010 * scale, 0xccc3b4, 0, 0);
+      }
+      buildBranchDeer(3.7, -9.2, 1.0, -0.5);
+      buildBranchDeer(5.2, -9.7, 0.78, 0.4);
+
+      // Square Branch Frame
+      (function () {
+        const px = -8.5, pz = -7.2;
+        const corners = [
+          new THREE.Vector3(px - 0.85, 0.35, pz), new THREE.Vector3(px + 0.85, 0.35, pz),
+          new THREE.Vector3(px + 0.85, 2.05, pz), new THREE.Vector3(px - 0.85, 2.05, pz)
+        ];
+        for (let e = 0; e < 4; e++) {
+          const a = corners[e], b = corners[(e + 1) % 4];
+          for (let k = 0; k < 14; k++) {
+            pushBranch(1, a.clone().add(new THREE.Vector3(randRange(-0.06, 0.06), randRange(-0.06, 0.06), randRange(-0.06, 0.06))), b.clone().add(new THREE.Vector3(randRange(-0.06, 0.06), randRange(-0.06, 0.06), randRange(-0.06, 0.06))), 0.016, 0x8c755e, randRange(0, 6.28), 0.35);
+          }
+        }
+        addLimbBranches(new THREE.Vector3(px - 0.78, 0, pz), new THREE.Vector3(px - 0.78, 0.35, pz), 0.05, 0.05, 6, 0.02, 0x6b5642);
+        addLimbBranches(new THREE.Vector3(px + 0.78, 0, pz), new THREE.Vector3(px + 0.78, 0.35, pz), 0.05, 0.05, 6, 0.02, 0x6b5642);
+      })();
+
+      // Instantiate branches & nail heads
+      setProgress(86);
+      const sculptureGroup = new THREE.Group();
+      scene.add(sculptureGroup);
+
+      for (let t = 0; t < branchGeos.length; t++) {
+        const items = branchBuckets[t];
+        if (!items.length) continue;
+        const im = new THREE.InstancedMesh(branchGeos[t], branchMat, items.length);
+        im.castShadow = true;
+        im.receiveShadow = true;
+        im.frustumCulled = false;
+        for (let i = 0; i < items.length; i++) {
+          im.setMatrixAt(i, items[i].matrix);
+          im.setColorAt(i, items[i].color);
+        }
+        im.instanceMatrix.needsUpdate = true;
+        if (im.instanceColor) im.instanceColor.needsUpdate = true;
+        sculptureGroup.add(im);
+      }
+
+      if (nailList.length) {
+        const nailIM = new THREE.InstancedMesh(nailGeo, nailMat, nailList.length);
+        nailIM.frustumCulled = false;
+        for (let i = 0; i < nailList.length; i++) nailIM.setMatrixAt(i, nailList[i]);
+        nailIM.instanceMatrix.needsUpdate = true;
+        sculptureGroup.add(nailIM);
+      }
+
+      // =========================================================================
+      // 6. WHITE IRON CHEST ARCH FRAME & OPEN WALKTHROUGH GATE
+      // =========================================================================
+      const gateGroup = new THREE.Group();
+      gateGroup.position.set(0, 0, 0.56);
+      scene.add(gateGroup);
+      const whiteIronMat = new THREE.MeshStandardMaterial({ color: 0xebe9e2, roughness: 0.42, metalness: 0.52 });
+      const ironAccentMat = new THREE.MeshStandardMaterial({ color: 0x3b3d42, roughness: 0.5, metalness: 0.78 });
+
+      const frameLeft = new THREE.Mesh(new THREE.BoxGeometry(0.055, 1.72, 0.055), whiteIronMat);
+      frameLeft.position.set(-0.74, 0.86, 0);
+      const frameRight = frameLeft.clone(); frameRight.position.set(0.74, 0.86, 0);
+      const frameTop = new THREE.Mesh(new THREE.BoxGeometry(1.54, 0.055, 0.055), whiteIronMat);
+      frameTop.position.set(0, 1.70, 0);
+      const archRing = new THREE.Mesh(new THREE.TorusGeometry(0.74, 0.028, 10, 28, Math.PI), whiteIronMat);
+      archRing.position.set(0, 1.68, 0);
+      gateGroup.add(frameLeft, frameRight, frameTop, archRing);
+
+      for (let a = 0.32; a < Math.PI - 0.3; a += 0.38) {
+        const spokeLen = Math.sin(a) * 0.72;
+        const spoke = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, spokeLen, 6), whiteIronMat);
+        spoke.position.set(Math.cos(a) * 0.72, 1.68 + spokeLen * 0.5, 0);
+        gateGroup.add(spoke);
+      }
+
+      function createGateLeaf(isLeft) {
+        const pivot = new THREE.Group();
+        pivot.position.set(isLeft ? -0.71 : 0.71, 0, 0);
+        const dir = isLeft ? 1 : -1, leafW = 0.69, leafH = 1.64;
+        const outerBar = new THREE.Mesh(new THREE.BoxGeometry(0.032, leafH, 0.032), whiteIronMat);
+        outerBar.position.set(dir * 0.016, leafH / 2, 0);
+        const innerBar = outerBar.clone(); innerBar.position.set(dir * (leafW - 0.016), leafH / 2, 0);
+        const botBar = new THREE.Mesh(new THREE.BoxGeometry(leafW, 0.032, 0.032), whiteIronMat);
+        botBar.position.set(dir * leafW / 2, 0.05, 0);
+        const midBar = botBar.clone(); midBar.position.set(dir * leafW / 2, 0.85, 0);
+        const topBar = botBar.clone(); topBar.position.set(dir * leafW / 2, leafH - 0.016, 0);
+        pivot.add(outerBar, innerBar, botBar, midBar, topBar);
+        for (let b = 1; b <= 5; b++) {
+          const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, leafH - 0.08, 6), whiteIronMat);
+          rod.position.set(dir * (b * (leafW / 6)), leafH / 2 + 0.02, 0);
+          pivot.add(rod);
+        }
+        const latch = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.11, 0.045), ironAccentMat);
+        latch.position.set(dir * (leafW - 0.05), 0.86, 0);
+        pivot.add(latch);
+        pivot.rotation.y = isLeft ? 1.44 : -1.44;
+        pivot.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+        return pivot;
+      }
+      gateGroup.add(createGateLeaf(true), createGateLeaf(false));
+
+      // =========================================================================
+      // 7. RAW LOG "JIN GU BANG", BIRD & RURAL ENVIRONMENT
+      // =========================================================================
+      (function buildRawLogStaff() {
+        const staffGroup = new THREE.Group();
+        staffGroup.position.set(4.45, 0, 1.35);
+        staffGroup.rotation.z = -0.075;
+        staffGroup.rotation.x = 0.04;
+        const geo = new THREE.CylinderGeometry(0.155, 0.185, 3.45, 18, 22);
+        const pos = geo.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+          const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+          const ang = Math.atan2(z, x);
+          const rShift = 1.0 + 0.08 * Math.sin(y * 3.5 + ang * 2.0) + 0.045 * Math.cos(y * 9.0);
+          pos.setXYZ(i, x * rShift, y, z * rShift);
+        }
+        geo.computeVertexNormals();
+        const trunk = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: barkTex.map, bumpMap: barkTex.bumpMap, bumpScale: 0.06, color: 0x735b43, roughness: 0.94 }));
+        trunk.position.y = 1.68; trunk.castShadow = true; trunk.receiveShadow = true;
+        staffGroup.add(trunk);
+        const mound = new THREE.Mesh(new THREE.ConeGeometry(0.68, 0.34, 18), new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.98, color: 0x8d724e }));
+        mound.position.set(4.45, 0.14, 1.35); mound.receiveShadow = true;
+        scene.add(mound, staffGroup);
+      })();
+
+      // Perched little bird on crown
+      const birdGroup = new THREE.Group();
+      birdGroup.position.set(0.32, 7.12, 0.08);
+      const birdMat = new THREE.MeshStandardMaterial({ color: 0x454f5e, roughness: 0.7 });
+      const birdBody = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), birdMat); birdBody.scale.set(0.85, 0.9, 1.4);
+      const birdHead = new THREE.Mesh(new THREE.SphereGeometry(0.036, 10, 8), new THREE.MeshStandardMaterial({ color: 0x202226, roughness: 0.6 }));
+      birdHead.position.set(0, 0.05, 0.055);
+      const birdTail = new THREE.Mesh(new THREE.BoxGeometry(0.026, 0.01, 0.13), birdMat);
+      birdTail.position.set(0, 0.015, -0.095); birdTail.rotation.x = 0.28;
+      birdGroup.add(birdBody, birdHead, birdTail);
+      scene.add(birdGroup);
+
+      // Ground, Village Road, Fence, Hut, Crops
+      const ground = new THREE.Mesh(new THREE.PlaneGeometry(240, 240), new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.96 }));
+      ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
+      scene.add(ground);
+
+      const road = new THREE.Mesh(new THREE.PlaneGeometry(180, 5.4), new THREE.MeshStandardMaterial({ map: roadTex, roughness: 0.88 }));
+      road.rotation.x = -Math.PI / 2; road.position.set(0, 0.014, 13.8); road.receiveShadow = true;
+      scene.add(road);
+
+      const fenceWoodMat = new THREE.MeshStandardMaterial({ map: barkTex.map, color: 0x7c654d, roughness: 0.94 });
+      const fenceCorners = [[2.4, -7.8], [6.4, -7.8], [6.4, -11.4], [2.4, -11.4]];
+      for (let i = 0; i < 4; i++) {
+        const [x1, z1] = fenceCorners[i], [x2, z2] = fenceCorners[(i + 1) % 4];
+        const dx = x2 - x1, dz = z2 - z1, segLen = Math.hypot(dx, dz), ang = Math.atan2(dx, dz);
+        for (let k = 0; k < 3; k++) {
+          const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.045, 0.95, 7), fenceWoodMat);
+          post.position.set(x1 + dx * (k / 3), 0.47, z1 + dz * (k / 3)); post.castShadow = true;
+          scene.add(post);
+        }
+        for (const h of [0.35, 0.72]) {
+          if (i === 0 && h > 0.6) continue;
+          const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, segLen, 6), fenceWoodMat);
+          rail.position.set((x1 + x2) / 2, h, (z1 + z2) / 2);
+          rail.rotation.x = Math.PI / 2; rail.rotation.z = -ang;
+          scene.add(rail);
+        }
+      }
+
+      // Workshop Hut
+      (function () {
+        const hut = new THREE.Group();
+        hut.position.set(-10.5, 0, -10.8); hut.rotation.y = 0.16;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(5.2, 2.8, 3.8), new THREE.MeshStandardMaterial({ color: 0xc2b7a6, roughness: 0.92 }));
+        body.position.y = 1.4; body.castShadow = true; body.receiveShadow = true;
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(5.8, 0.14, 4.4), new THREE.MeshStandardMaterial({ color: 0x455666, roughness: 0.65, metalness: 0.35 }));
+        roof.position.set(0, 2.88, 0); roof.rotation.x = 0.08; roof.castShadow = true;
+        const door = new THREE.Mesh(new THREE.BoxGeometry(0.95, 2.05, 0.08), new THREE.MeshStandardMaterial({ color: 0x5c432e, roughness: 0.85 }));
+        door.position.set(0.8, 1.02, 1.91);
+        const win = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.98, 0.08), new THREE.MeshStandardMaterial({ color: 0xd8cdb8, roughness: 0.35 }));
+        win.position.set(-1.15, 1.55, 1.91);
+        hut.add(body, roof, door, win);
+        for (let b = 0; b < 50; b++) {
+          const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.038, randRange(1.2, 2.2), 5), new THREE.MeshStandardMaterial({ map: barkTex.map, color: 0x826d57, roughness: 0.95 }));
+          stick.position.set(3.4 + randRange(-0.4, 0.4), 0.15 + (b % 6) * 0.06, randRange(-0.8, 1.2));
+          stick.rotation.z = Math.PI / 2 + randRange(-0.15, 0.15);
+          stick.rotation.y = randRange(-0.3, 0.3);
+          hut.add(stick);
+        }
+        scene.add(hut);
+      })();
+
+      // Rural field stalks & village trees
+      (function () {
+        const stalkGeo = new THREE.ConeGeometry(0.035, 0.55, 4); stalkGeo.translate(0, 0.27, 0);
+        const stalkIM = new THREE.InstancedMesh(stalkGeo, new THREE.MeshStandardMaterial({ color: 0xa48c5a, roughness: 0.95 }), 1500);
+        const dummy = new THREE.Object3D();
+        let idx = 0;
+        for (let i = 0; i < 1500; i++) {
+          const x = randRange(-65, 65), z = randRange(-65, 65);
+          if (Math.abs(x) < 15.5 && z > -16 && z < 17) continue;
+          if (z > 10.5 && z < 17.5) continue;
+          dummy.position.set(x, 0, z);
+          dummy.rotation.set(randRange(-0.18, 0.18), randRange(0, 6.28), randRange(-0.18, 0.18));
+          dummy.scale.setScalar(randRange(0.7, 1.45));
+          dummy.updateMatrix();
+          stalkIM.setMatrixAt(idx++, dummy.matrix);
+        }
+        stalkIM.count = idx; stalkIM.instanceMatrix.needsUpdate = true;
+        scene.add(stalkIM);
+
+        const treeMat = new THREE.MeshStandardMaterial({ map: barkTex.map, color: 0x6b5a49, roughness: 0.95 });
+        const leafMat = new THREE.MeshStandardMaterial({ color: 0xa87c42, roughness: 0.9 });
+        for (const [tx, tz] of [[-19, 17.5], [-9, 18.2], [11, 18.0], [22, 17.6], [-24, -18], [19, -22], [26, 2], [-27, 4]]) {
+          const h = randRange(4.8, 7.2);
+          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.24, h, 7), treeMat);
+          trunk.position.set(tx, h / 2, tz); trunk.castShadow = true; scene.add(trunk);
+          for (let b = 0; b < 5; b++) {
+            const crown = new THREE.Mesh(new THREE.DodecahedronGeometry(randRange(0.9, 1.5), 1), leafMat);
+            crown.position.set(tx + randRange(-1.1, 1.1), h + randRange(-0.4, 0.9), tz + randRange(-1.1, 1.1));
+            crown.castShadow = true; scene.add(crown);
+          }
+        }
+
+        const poleMat = new THREE.MeshStandardMaterial({ color: 0x9b9a95, roughness: 0.9 });
+        for (let px = -45; px <= 45; px += 22) {
+          const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.15, 7.8, 8), poleMat);
+          pole.position.set(px, 3.9, 17.0); pole.castShadow = true; scene.add(pole);
+          const bar = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.08, 0.08), poleMat);
+          bar.position.set(px, 7.45, 17.0); scene.add(bar);
+        }
+      })();
+
+      // =========================================================================
+      // 8. PURE DEFAULT FIRST-PERSON WALKING & LOOK CONTROLS
+      // =========================================================================
+      const PLAYER_EYE_H = 1.72;
+      const fpState = {
+        pos: new THREE.Vector3(0, PLAYER_EYE_H, 9.6),
+        velY: 0,
+        grounded: true,
+        yaw: 0,
+        pitch: 0.22
+      };
+
+      function resolveFPCollision(nx, nz) {
+        nx = THREE.MathUtils.clamp(nx, -28, 28);
+        nz = THREE.MathUtils.clamp(nz, -24, 24);
+
+        // Chest Arch Walkthrough Corridor (|X| < 0.46)
+        if (Math.abs(nz) < 1.58 && Math.abs(nx) < 3.95) {
+          if (Math.abs(nx) < 0.45) {
+            nx = THREE.MathUtils.clamp(nx, -0.44, 0.44);
+          } else {
+            const prevZ = fpState.pos.z, prevX = fpState.pos.x;
+            if (Math.abs(prevZ) >= 1.58) nz = prevZ >= 0 ? 1.58 : -1.58;
+            else if (Math.abs(prevX) < 0.45) nx = THREE.MathUtils.clamp(nx, -0.44, 0.44);
+            else nx = prevX >= 0 ? 3.95 : -3.95;
+          }
+        }
+
+        // Circle colliders for staff & courtyard sculptures
+        const circles = [
+          [4.45, 1.35, 0.58],   // Jin Gu Bang raw log
+          [-6.4, -3.2, 1.55],   // Red Shire Horse
+          [5.4, -4.2, 1.15],    // Totoro
+          [-3.4, -7.6, 1.05]    // Swan
+        ];
+        for (const [cx, cz, cr] of circles) {
+          const d = Math.hypot(nx - cx, nz - cz);
+          if (d < cr) {
+            const a = Math.atan2(nz - cz, nx - cx);
+            nx = cx + Math.cos(a) * cr;
+            nz = cz + Math.sin(a) * cr;
+          }
+        }
+        return [nx, nz];
+      }
+
+      const keys = {};
+      window.addEventListener("keydown", e => { keys[e.code] = true; });
+      window.addEventListener("keyup", e => { keys[e.code] = false; });
+
+      let isDragging = false, lastX = 0, lastY = 0, downX = 0, downY = 0;
+      renderer.domElement.addEventListener("contextmenu", e => e.preventDefault());
+      renderer.domElement.addEventListener("mousedown", e => {
+        isDragging = true;
+        lastX = downX = e.clientX;
+        lastY = downY = e.clientY;
+        container.classList.add("dragging");
+      });
+      window.addEventListener("mouseup", e => {
+        if (isDragging && e.button === 0 && Math.hypot(e.clientX - downX, e.clientY - downY) < 4) {
+          try {
+            if (document.pointerLockElement !== renderer.domElement && renderer.domElement.requestPointerLock) {
+              const p = renderer.domElement.requestPointerLock();
+              if (p && p.catch) p.catch(() => {});
+            }
+          } catch (_) {}
+        }
+        isDragging = false;
+        container.classList.remove("dragging");
+      });
+
+      window.addEventListener("mousemove", e => {
+        if (document.pointerLockElement === renderer.domElement) {
+          fpState.yaw -= e.movementX * 0.0022;
+          fpState.pitch = THREE.MathUtils.clamp(fpState.pitch - e.movementY * 0.0022, -1.35, 1.38);
+          return;
+        }
+        if (!isDragging) return;
+        const dx = e.clientX - lastX, dy = e.clientY - lastY;
+        lastX = e.clientX; lastY = e.clientY;
+        fpState.yaw -= dx * 0.0038;
+        fpState.pitch = THREE.MathUtils.clamp(fpState.pitch - dy * 0.0038, -1.35, 1.38);
+      });
+
+      renderer.domElement.addEventListener("wheel", e => {
+        e.preventDefault();
+        camera.fov = THREE.MathUtils.clamp(camera.fov + e.deltaY * 0.025, 20, 80);
+        camera.updateProjectionMatrix();
+      }, { passive: false });
+
+      // Touch Look & Joystick for mobile
+      let touchLookId = null, prevTouchX = 0, prevTouchY = 0;
+      renderer.domElement.addEventListener("touchstart", e => {
+        if (e.touches.length === 1) {
+          touchLookId = e.touches[0].identifier;
+          prevTouchX = e.touches[0].clientX;
+          prevTouchY = e.touches[0].clientY;
+        }
+      }, { passive: true });
+      renderer.domElement.addEventListener("touchmove", e => {
+        for (const t of e.touches) {
+          if (t.identifier === touchLookId) {
+            const dx = t.clientX - prevTouchX, dy = t.clientY - prevTouchY;
+            prevTouchX = t.clientX; prevTouchY = t.clientY;
+            fpState.yaw -= dx * 0.0045;
+            fpState.pitch = THREE.MathUtils.clamp(fpState.pitch - dy * 0.0045, -1.35, 1.38);
+          }
+        }
+      }, { passive: true });
+
+      const joyVec = { x: 0, y: 0 };
+      const joyBase = document.getElementById("joystick-base");
+      const joyKnob = document.getElementById("joystick-knob");
+      let joyTouchId = null;
+      function updateJoystick(clientX, clientY) {
+        const rect = joyBase.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2, maxR = rect.width * 0.38;
+        let dx = clientX - cx, dy = clientY - cy, len = Math.hypot(dx, dy);
+        if (len > maxR) { dx = (dx / len) * maxR; dy = (dy / len) * maxR; }
+        joyKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+        joyVec.x = dx / maxR; joyVec.y = dy / maxR;
+      }
+      joyBase.addEventListener("touchstart", e => { e.stopPropagation(); joyTouchId = e.changedTouches[0].identifier; updateJoystick(e.changedTouches[0].clientX, e.changedTouches[0].clientY); });
+      joyBase.addEventListener("touchmove", e => { e.stopPropagation(); for (const t of e.changedTouches) if (t.identifier === joyTouchId) updateJoystick(t.clientX, t.clientY); });
+      joyBase.addEventListener("touchend", () => { joyTouchId = null; joyVec.x = joyVec.y = 0; joyKnob.style.transform = "translate(-50%, -50%)"; });
+      if ("ontouchstart" in window) document.getElementById("touch-controls").classList.add("visible");
+
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      setProgress(100);
+      setTimeout(() => document.getElementById("loading-screen").classList.add("hidden"), 300);
+
+      let prevTime = performance.now();
+      function animate(now) {
+        requestAnimationFrame(animate);
+        const dt = Math.min((now - prevTime) * 0.001, 0.05);
+        prevTime = now;
+
+        birdHead.rotation.y = Math.sin(now * 0.0018) * 0.38;
+        birdHead.rotation.x = Math.sin(now * 0.0031) * 0.12;
+        birdTail.rotation.x = 0.28 + Math.sin(now * 0.0055) * 0.14;
+
+        const speed = (keys["ShiftLeft"] || keys["ShiftRight"]) ? 6.2 : 3.4;
+        let fwd = 0, strafe = 0;
+        if (keys["KeyW"] || keys["ArrowUp"]) fwd += 1;
+        if (keys["KeyS"] || keys["ArrowDown"]) fwd -= 1;
+        if (keys["KeyD"] || keys["ArrowRight"]) strafe += 1;
+        if (keys["KeyA"] || keys["ArrowLeft"]) strafe -= 1;
+        fwd -= joyVec.y;
+        strafe += joyVec.x;
+
+        if (Math.abs(fwd) > 0.01 || Math.abs(strafe) > 0.01) {
+          const len = Math.hypot(fwd, strafe);
+          if (len > 1) { fwd /= len; strafe /= len; }
+          const sinY = Math.sin(fpState.yaw), cosY = Math.cos(fpState.yaw);
+          const vx = (-sinY * fwd + cosY * strafe) * speed * dt;
+          const vz = (-cosY * fwd - sinY * strafe) * speed * dt;
+          const [nx, nz] = resolveFPCollision(fpState.pos.x + vx, fpState.pos.z + vz);
+          fpState.pos.x = nx; fpState.pos.z = nz;
+        }
+
+        if (keys["Space"] && fpState.grounded) {
+          fpState.velY = 4.6; fpState.grounded = false;
+        }
+        if (!fpState.grounded) {
+          fpState.velY -= 12.8 * dt;
+          fpState.pos.y += fpState.velY * dt;
+          if (fpState.pos.y <= PLAYER_EYE_H) {
+            fpState.pos.y = PLAYER_EYE_H; fpState.velY = 0; fpState.grounded = true;
+          }
+        }
+
+        camera.position.copy(fpState.pos);
+        camera.rotation.order = "YXZ";
+        camera.rotation.y = fpState.yaw;
+        camera.rotation.x = fpState.pitch;
+        camera.rotation.z = 0;
+
+        renderer.render(scene, camera);
+      }
+      requestAnimationFrame(animate);
+    }
+  </script>
+</body>
+</html>
